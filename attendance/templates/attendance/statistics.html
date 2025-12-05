@@ -1,0 +1,128 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Статистика посещаемости{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h1>Статистика посещаемости</h1>
+        <form method="get" class="month-form">
+            <label>
+                Месяц:
+                <input type="number" name="month" min="1" max="12" value="{{ month }}" class="input input-small">
+            </label>
+            <label>
+                Год:
+                <input type="number" name="year" min="2000" max="2100" value="{{ year }}" class="input input-small">
+            </label>
+            <button type="submit" class="btn btn-primary btn-small">Показать</button>
+        </form>
+    </div>
+
+    <div class="card-section">
+        <h2>Дневная статистика</h2>
+        {% if ordered_days %}
+            {% for day, records in ordered_days %}
+                <div class="subcard">
+                    <h3>{{ day|date:"d.m.Y" }}</h3>
+                    <div class="table-wrapper">
+                        <table class="table table-compact">
+                            <thead>
+                            <tr>
+                                <th>Класс</th>
+                                <th>Присутствуют (по списку)</th>
+                                <th>Пришло по факту</th>
+                                <th>Неуважительные</th>
+                                <th>Отсутствующие ученики</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for s in records %}
+                                <tr>
+                                    <td>{{ s.class_room.name }}</td>
+                                    <td>{{ s.present_count_auto }}</td>
+                                    <td>{{ s.present_count_reported }}</td>
+                                    <td>{{ s.unexcused_absent_count }}</td>
+                                    <td>
+                                        {% if s.absent_students.all %}
+                                            <ul class="pill-list">
+                                                {% for a in s.absent_students.all %}
+                                                    <li class="pill">{{ a.student.full_name }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="muted">Нет данных</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="muted">За выбранный месяц данных нет.</p>
+        {% endif %}
+    </div>
+
+    <div class="card-section">
+        <h2>Сводка по классам за месяц</h2>
+        {% if monthly_by_class %}
+            <div class="table-wrapper">
+                <table class="table table-compact">
+                    <thead>
+                    <tr>
+                        <th>Класс</th>
+                        <th>Всего присутствий (по списку)</th>
+                        <th>Всего пришедших (по факту)</th>
+                        <th>Всего неуважительных</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in monthly_by_class %}
+                        <tr>
+                            <td>{{ row.class_room__name }}</td>
+                            <td>{{ row.total_present_auto }}</td>
+                            <td>{{ row.total_present_reported }}</td>
+                            <td>{{ row.total_unexcused }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted">Нет данных для построения сводной таблицы.</p>
+        {% endif %}
+    </div>
+
+    <div class="card-section">
+        <h2>Статистика по ученикам за месяц</h2>
+        {% if per_student %}
+            <div class="table-wrapper">
+                <table class="table table-compact">
+                    <thead>
+                    <tr>
+                        <th>Класс</th>
+                        <th>ФИО ученика</th>
+                        <th>Кол-во неявок</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in per_student %}
+                        <tr>
+                            <td>{{ row.student__class_room__name }}</td>
+                            <td>{{ row.student__full_name }}</td>
+                            <td>{{ row.absence_count }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted">Нет данных по отсутствиям учеников за выбранный месяц.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

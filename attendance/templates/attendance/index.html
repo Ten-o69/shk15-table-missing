@@ -1,0 +1,300 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+{% load attendance_tags %}
+
+{% block title %}Посещаемость за сегодня{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h1>Посещаемость за сегодня: {{ today|date:"d.m.Y" }}</h1>
+        <p class="card-subtitle">
+            Ввод по каждому классу доступен только один раз в день.
+            На следующий день таблица начнётся с чистого листа, а данные останутся в статистике.
+        </p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="row_count" value="{{ classes|length }}">
+
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Класс</th>
+                    <th>Присутствуют<br><span class="th-sub">(по списку, из БД)</span></th>
+                    <th>Пришло по факту<br><span class="th-sub">(ввести)</span></th>
+                    <th>Отсутствуют по неуважительной причине<br><span class="th-sub">(ввести)</span></th>
+                    <th>Отсутствующие ученики<br><span class="th-sub">(выбор из списка)</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for class in classes %}
+                    {% with summary=summary_by_class|dict_get:class.id %}
+                    <tr class="table-row">
+                        <td class="text-bold">
+                            {{ class.name }}
+                            <input type="hidden" name="class_{{ forloop.counter0 }}" value="{{ class.id }}">
+                        </td>
+
+                        <td>
+                            {% if summary %}
+                                <span>{{ summary.present_count_auto }}</span>
+                            {% else %}
+                                <span class="muted">будет рассчитано после сохранения</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if summary %}
+                                <span>{{ summary.present_count_reported }}</span>
+                            {% else %}
+                                <input type="number"
+                                       name="reported_present_{{ forloop.counter0 }}"
+                                       class="input"
+                                       min="0"
+                                       placeholder="Введите количество">
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if summary %}
+                                <span>{{ summary.unexcused_absent_count }}</span>
+                            {% else %}
+                                <input type="number"
+                                       name="unexcused_absent_{{ forloop.counter0 }}"
+                                       class="input"
+                                       min="0"
+                                       placeholder="Введите количество">
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if summary %}
+                                {% with absents=summary.absent_students.all %}
+                                    {% if absents %}
+                                        <ul class="pill-list">
+                                            {% for a in absents %}
+                                                <li class="pill">{{ a.student.full_name }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <span class="muted">Отсутствующих не выбрано</span>
+                                    {% endif %}
+                                {% endwith %}
+                            {% else %}
+                                <div class="absent-cell">
+                                    <button type="button"
+                                            class="btn btn-small btn-outline open-modal-btn"
+                                            data-class-id="{{ class.id }}">
+                                        Выбрать отсутствующих
+                                    </button>
+                                    <input type="hidden"
+                                           id="absent-students-{{ class.id }}"
+                                           name="absent_students_{{ class.id }}">
+                                    <div class="selected-students" id="selected-students-{{ class.id }}">
+                                        <span class="muted">Ученики не выбраны</span>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endwith %}
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center muted">
+                            Классы не найдены. Проверьте, что они созданы в админке.
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+
+                {% if classes %}
+                    <tfoot>
+                    <tr class="table-footer">
+                        <td class="text-bold">ИТОГО</td>
+                        <td>{{ totals.total_present_auto|default:"0" }}</td>
+                        <td>{{ totals.total_present_reported|default:"0" }}</td>
+                        <td>{{ totals.total_unexcused|default:"0" }}</td>
+                        <td></td>
+                    </tr>
+                    </tfoot>
+                {% endif %}
+            </table>
+        </div>
+
+        {% if classes %}
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    Сохранить данные
+                </button>
+            </div>
+        {% endif %}
+    </form>
+</div>
+
+{# Скрытые контейнеры со списками учеников по классам для модального окна #}
+{% for class in classes %}
+    <div id="students-container-{{ class.id }}" class="hidden-students-container">
+        {% with students=students_by_class|dict_get:class.id %}
+            {% for student in students %}
+                <div class="student-option"
+                     data-student-id="{{ student.id }}"
+                     data-student-name="{{ student.full_name }}">
+                    {{ student.full_name }}
+                </div>
+            {% endfor %}
+        {% endwith %}
+    </div>
+{% endfor %}
+
+{# Модальное окно #}
+<div id="students-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Выбор отсутствующих учеников</h2>
+        </div>
+        <div class="modal-body">
+            <input type="text"
+                   id="student-search"
+                   class="input input-full"
+                   placeholder="Поиск по ФИО...">
+            <div id="students-list" class="students-list">
+                <!-- сюда динамически подставляются ученики -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="modal-cancel" class="btn btn-outline">Отмена</button>
+            <button type="button" id="modal-apply" class="btn btn-primary">Применить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const modal = document.getElementById('students-modal');
+        const searchInput = document.getElementById('student-search');
+        const studentsList = document.getElementById('students-list');
+        const cancelBtn = document.getElementById('modal-cancel');
+        const applyBtn = document.getElementById('modal-apply');
+        let currentClassId = null;
+
+        function openModal(classId) {
+            currentClassId = classId;
+            searchInput.value = '';
+            studentsList.innerHTML = '';
+
+            const container = document.getElementById('students-container-' + classId);
+            if (!container) return;
+
+            const hiddenField = document.getElementById('absent-students-' + classId);
+            const selectedRaw = hiddenField.value || '';
+            const selectedIds = selectedRaw ? selectedRaw.split(',').map(s => s.trim()) : [];
+
+            container.querySelectorAll('.student-option').forEach(function (item) {
+                const id = item.dataset.studentId;
+                const name = item.dataset.studentName;
+
+                const row = document.createElement('label');
+                row.className = 'student-row';
+                row.dataset.name = name.toLowerCase();
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = id;
+                if (selectedIds.includes(id)) {
+                    checkbox.checked = true;
+                }
+
+                const span = document.createElement('span');
+                span.textContent = name;
+
+                row.appendChild(checkbox);
+                row.appendChild(span);
+                studentsList.appendChild(row);
+            });
+
+            modal.classList.remove('hidden');
+            searchInput.focus();
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            currentClassId = null;
+        }
+
+        function applySelection() {
+            if (!currentClassId) return;
+
+            const hiddenField = document.getElementById('absent-students-' + currentClassId);
+            const selectedContainer = document.getElementById('selected-students-' + currentClassId);
+
+            const checked = studentsList.querySelectorAll('input[type="checkbox"]:checked');
+            const ids = [];
+            const names = [];
+
+            checked.forEach(function (cb) {
+                ids.push(cb.value);
+                names.push(cb.parentElement.querySelector('span').textContent);
+            });
+
+            hiddenField.value = ids.join(',');
+
+            selectedContainer.innerHTML = '';
+            if (names.length === 0) {
+                const span = document.createElement('span');
+                span.className = 'muted';
+                span.textContent = 'Ученики не выбраны';
+                selectedContainer.appendChild(span);
+            } else {
+                const ul = document.createElement('ul');
+                ul.className = 'pill-list';
+                names.forEach(function (n) {
+                    const li = document.createElement('li');
+                    li.className = 'pill';
+                    li.textContent = n;
+                    ul.appendChild(li);
+                });
+                selectedContainer.appendChild(ul);
+            }
+
+            closeModal();
+        }
+
+        // фильтрация по поиску
+        searchInput.addEventListener('input', function () {
+            const term = this.value.toLowerCase();
+            studentsList.querySelectorAll('.student-row').forEach(function (row) {
+                const name = row.dataset.name || '';
+                row.style.display = name.includes(term) ? '' : 'none';
+            });
+        });
+
+        // открытие модалки по кнопке
+        document.querySelectorAll('.open-modal-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const classId = this.dataset.classId;
+                openModal(classId);
+            });
+        });
+
+        cancelBtn.addEventListener('click', closeModal);
+        applyBtn.addEventListener('click', applySelection);
+
+        // закрытие по клику на фон
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // закрытие по Esc
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                closeModal();
+            }
+        });
+    })();
+</script>
+{% endblock %}

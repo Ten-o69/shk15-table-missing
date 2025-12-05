@@ -1,0 +1,46 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Вход в систему{% endblock %}
+
+{% block content %}
+<div class="card card-narrow">
+    <div class="card-header">
+        <h1>Вход</h1>
+        <p class="card-subtitle">Авторизуйтесь, чтобы работать с посещаемостью.</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="id_username">Имя пользователя</label>
+            <input type="text"
+                   name="username"
+                   autofocus
+                   required
+                   id="id_username"
+                   class="input input-full">
+        </div>
+
+        <div class="form-group">
+            <label for="id_password">Пароль</label>
+            <input type="password"
+                   name="password"
+                   required
+                   id="id_password"
+                   class="input input-full">
+        </div>
+
+        {% if form.errors %}
+            <div class="alert alert-danger">
+                Неверное имя пользователя или пароль.
+            </div>
+        {% endif %}
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Войти</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
