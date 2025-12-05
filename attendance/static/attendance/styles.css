@@ -445,3 +445,100 @@ a:hover {
     align-items: center;
     gap: 4px;
 }
+
+.daily-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.daily-summary-item {
+    color: var(--text-muted);
+}
+
+.daily-summary-item .text-bold {
+    color: var(--text);
+}
+
+.filters-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.filters-panel {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background-color: var(--bg-subcard);
+    border: 1px solid var(--border);
+}
+
+.filters-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.filters-row-multi {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.filters-row:last-child {
+    margin-bottom: 0;
+}
+
+.filters-row label {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.section-body.collapsed,
+.subcard-body.collapsed {
+    display: none;
+}
+
+.subcard-header-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.subcard-header-main h3 {
+    margin-bottom: 4px;
+}
+
+.daily-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.daily-summary-item {
+    color: var(--text-muted);
+}
+
+.daily-summary-item .text-bold {
+    color: var(--text);
+}

@@ -167,6 +167,18 @@ def statistics(request):
 
     ordered_days = sorted(days_map.items(), key=lambda x: x[0], reverse=True)
 
+    # итоги по каждому дню (как на главной, только по дню)
+    day_totals = {}
+    for day, records in days_map.items():
+        total_present_auto = sum(r.present_count_auto for r in records)
+        total_present_reported = sum(r.present_count_reported for r in records)
+        total_unexcused = sum(r.unexcused_absent_count for r in records)
+        day_totals[day] = {
+            'total_present_auto': total_present_auto,
+            'total_present_reported': total_present_reported,
+            'total_unexcused': total_unexcused,
+        }
+
     # сводка по классам за месяц
     monthly_by_class = monthly_qs.values(
         'class_room__id',
@@ -193,6 +205,7 @@ def statistics(request):
 
     context = {
         'ordered_days': ordered_days,
+        'day_totals': day_totals,
         'monthly_by_class': monthly_by_class,
         'per_student': per_student,
         'month': month,

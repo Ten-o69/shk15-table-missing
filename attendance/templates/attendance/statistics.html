@@ -1,5 +1,6 @@
 {% extends 'attendance/base.html' %}
 {% load static %}
+{% load attendance_tags %}
 
 {% block title %}Статистика посещаемости{% endblock %}
 
@@ -7,118 +8,449 @@
 <div class="card">
     <div class="card-header">
         <h1>Статистика посещаемости</h1>
-        <form method="get" class="month-form">
-            <label>
-                Месяц:
-                <input type="number" name="month" min="1" max="12" value="{{ month }}" class="input input-small">
-            </label>
-            <label>
-                Год:
-                <input type="number" name="year" min="2000" max="2100" value="{{ year }}" class="input input-small">
-            </label>
-            <button type="submit" class="btn btn-primary btn-small">Показать</button>
-        </form>
-    </div>
+        <p class="card-subtitle">
+            Здесь можно анализировать посещаемость по дням, классам и ученикам.
+            Используйте фильтры ниже, чтобы быстро находить нужную информацию.
+        </p>
 
-    <div class="card-section">
-        <h2>Дневная статистика</h2>
-        {% if ordered_days %}
-            {% for day, records in ordered_days %}
-                <div class="subcard">
-                    <h3>{{ day|date:"d.m.Y" }}</h3>
-                    <div class="table-wrapper">
-                        <table class="table table-compact">
-                            <thead>
-                            <tr>
-                                <th>Класс</th>
-                                <th>Пришло по факту</th>
-                                <th>Неуважительные</th>
-                                <th>Отсутствующие ученики</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {% for s in records %}
-                                <tr>
-                                    <td>{{ s.class_room.name }}</td>
-                                    <td>{{ s.present_count_reported }}</td>
-                                    <td>{{ s.unexcused_absent_count }}</td>
-                                    <td>
-                                        {% if s.absent_students.all %}
-                                            <ul class="pill-list">
-                                                {% for a in s.absent_students.all %}
-                                                    <li class="pill">{{ a.student.full_name }}</li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% else %}
-                                            <span class="muted">Нет данных</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+        <div class="filters-layout">
+            <form method="get" class="month-form">
+                <label>
+                    Месяц:
+                    <input type="number" name="month" min="1" max="12" value="{{ month }}" class="input input-small">
+                </label>
+                <label>
+                    Год:
+                    <input type="number" name="year" min="2000" max="2100" value="{{ year }}" class="input input-small">
+                </label>
+                <button type="submit" class="btn btn-primary btn-small">Показать</button>
+            </form>
+
+            <div class="filters-panel">
+                <div class="filters-row">
+                    <label>
+                        Общий поиск по тексту:
+                        <input id="global-search"
+                               type="text"
+                               class="input"
+                               placeholder="Класс, ФИО ученика или любой текст из таблиц">
+                    </label>
                 </div>
-            {% endfor %}
-        {% else %}
-            <p class="muted">За выбранный месяц данных нет.</p>
-        {% endif %}
+
+                <div class="filters-row filters-row-multi">
+                    <label>
+                        Фильтр по классу:
+                        <input id="filter-class"
+                               type="text"
+                               class="input"
+                               placeholder="Например: 1В, 2А">
+                    </label>
+                    <label>
+                        Фильтр по ученику:
+                        <input id="filter-student"
+                               type="text"
+                               class="input"
+                               placeholder="ФИО или часть имени">
+                    </label>
+                </div>
+
+                <div class="filters-row filters-row-multi">
+                    <label>
+                        Мин. неуважительных (за день / по классу):
+                        <input id="filter-min-unexcused"
+                               type="number"
+                               min="0"
+                               class="input input-small"
+                               placeholder="0">
+                    </label>
+                    <label>
+                        Мин. неявок ученика за месяц:
+                        <input id="filter-min-absences"
+                               type="number"
+                               min="0"
+                               class="input input-small"
+                               placeholder="0">
+                    </label>
+                    <label>
+                        Тип статистики:
+                        <select id="filter-table-type" class="input">
+                            <option value="all">Все таблицы</option>
+                            <option value="daily">Дневная</option>
+                            <option value="by_class">По классам</option>
+                            <option value="by_student">По ученикам</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </div>
     </div>
 
+    {# === ДНЕВНАЯ СТАТИСТИКА === #}
     <div class="card-section">
-        <h2>Сводка по классам за месяц</h2>
-        {% if monthly_by_class %}
-            <div class="table-wrapper">
-                <table class="table table-compact">
-                    <thead>
-                    <tr>
-                        <th>Класс</th>
-                        <th>Всего пришедших</th>
-                        <th>Всего неуважительных</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for row in monthly_by_class %}
-                        <tr>
-                            <td>{{ row.class_room__name }}</td>
-                            <td>{{ row.total_present_reported }}</td>
-                            <td>{{ row.total_unexcused }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="muted">Нет данных для построения сводной таблицы.</p>
-        {% endif %}
+        <div class="section-header">
+            <h2>Дневная статистика</h2>
+            <button type="button"
+                    class="btn btn-small btn-outline collapse-toggle"
+                    data-target-id="daily-section-body">
+                Развернуть
+            </button>
+        </div>
+
+        <div id="daily-section-body" class="section-body collapsed">
+            {% if ordered_days %}
+                {% for day, records in ordered_days %}
+                    <div class="subcard" data-section="daily" data-day="{{ day|date:'Y-m-d' }}">
+                        <div class="subcard-header-line">
+                            <div class="subcard-header-main">
+                                <h3>{{ day|date:"d.m.Y" }}</h3>
+
+                                {% with totals=day_totals|dict_get:day %}
+                                    <div class="daily-summary">
+                                        <span class="muted">Итого за день:</span>
+                                        <span class="daily-summary-item">
+                                            По списку:
+                                            <span class="text-bold">
+                                                {{ totals.total_present_auto|default:"0" }}
+                                            </span>
+                                        </span>
+                                        <span class="daily-summary-item">
+                                            Пришло по факту:
+                                            <span class="text-bold">
+                                                {{ totals.total_present_reported|default:"0" }}
+                                            </span>
+                                        </span>
+                                        <span class="daily-summary-item">
+                                            Неуважительные:
+                                            <span class="text-bold">
+                                                {{ totals.total_unexcused|default:"0" }}
+                                            </span>
+                                        </span>
+                                    </div>
+                                {% endwith %}
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-small btn-outline collapse-toggle"
+                                    data-target-id="day-body-{{ forloop.counter0 }}">
+                                Развернуть
+                            </button>
+                        </div>
+
+                        <div id="day-body-{{ forloop.counter0 }}" class="subcard-body collapsed">
+                            <div class="table-wrapper">
+                                <table class="table table-compact">
+                                    <thead>
+                                    <tr>
+                                        <th>Класс</th>
+                                        <th>Пришло по факту</th>
+                                        <th>Неуважительные</th>
+                                        <th>Отсутствующие ученики</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {% for s in records %}
+                                        <tr data-row-type="daily"
+                                            data-class-name="{{ s.class_room.name|lower }}"
+                                            data-unexcused="{{ s.unexcused_absent_count }}">
+                                            <td>{{ s.class_room.name }}</td>
+                                            <td>{{ s.present_count_reported }}</td>
+                                            <td>{{ s.unexcused_absent_count }}</td>
+                                            <td>
+                                                {% if s.absent_students.all %}
+                                                    <ul class="pill-list">
+                                                        {% for a in s.absent_students.all %}
+                                                            <li class="pill">{{ a.student.full_name }}</li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% else %}
+                                                    <span class="muted">Нет данных</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="muted">За выбранный месяц данных нет.</p>
+            {% endif %}
+        </div>
     </div>
 
+    {# === СВОДКА ПО КЛАССАМ ЗА МЕСЯЦ === #}
     <div class="card-section">
-        <h2>Статистика по ученикам за месяц</h2>
-        {% if per_student %}
-            <div class="table-wrapper">
-                <table class="table table-compact">
-                    <thead>
-                    <tr>
-                        <th>Класс</th>
-                        <th>ФИО ученика</th>
-                        <th>Кол-во неявок</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for row in per_student %}
+        <div class="section-header">
+            <h2>Сводка по классам за месяц</h2>
+            <button type="button"
+                    class="btn btn-small btn-outline collapse-toggle"
+                    data-target-id="by-class-section-body">
+                Развернуть
+            </button>
+        </div>
+
+        <div id="by-class-section-body" class="section-body collapsed">
+            {% if monthly_by_class %}
+                <div class="table-wrapper">
+                    <table class="table table-compact">
+                        <thead>
                         <tr>
-                            <td>{{ row.student__class_room__name }}</td>
-                            <td>{{ row.student__full_name }}</td>
-                            <td>{{ row.absence_count }}</td>
+                            <th>Класс</th>
+                            <th>Всего пришедших</th>
+                            <th>Всего неуважительных</th>
                         </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="muted">Нет данных по отсутствиям учеников за выбранный месяц.</p>
-        {% endif %}
+                        </thead>
+                        <tbody>
+                        {% for row in monthly_by_class %}
+                            <tr data-row-type="by_class"
+                                data-class-name="{{ row.class_room__name|lower }}"
+                                data-total-unexcused="{{ row.total_unexcused }}">
+                                <td>{{ row.class_room__name }}</td>
+                                <td>{{ row.total_present_reported }}</td>
+                                <td>{{ row.total_unexcused }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="muted">Нет данных для построения сводной таблицы.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# === СТАТИСТИКА ПО УЧЕНИКАМ === #}
+    <div class="card-section">
+        <div class="section-header">
+            <h2>Статистика по ученикам за месяц</h2>
+            <button type="button"
+                    class="btn btn-small btn-outline collapse-toggle"
+                    data-target-id="by-student-section-body">
+                Развернуть
+            </button>
+        </div>
+
+        <div id="by-student-section-body" class="section-body collapsed">
+            {% if per_student %}
+                <div class="table-wrapper">
+                    <table class="table table-compact">
+                        <thead>
+                        <tr>
+                            <th>Класс</th>
+                            <th>ФИО ученика</th>
+                            <th>Кол-во неявок</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for row in per_student %}
+                            <tr data-row-type="by_student"
+                                data-class-name="{{ row.student__class_room__name|lower }}"
+                                data-student-name="{{ row.student__full_name|lower }}"
+                                data-absence-count="{{ row.absence_count }}">
+                                <td>{{ row.student__class_room__name }}</td>
+                                <td>{{ row.student__full_name }}</td>
+                                <td>{{ row.absence_count }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="muted">Нет данных по отсутствиям учеников за выбранный месяц.</p>
+            {% endif %}
+        </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        // --- хелпер: сворачивает / разворачивает блок + синхронизирует кнопку ---
+        function setCollapsed(targetId, collapsed) {
+            const target = document.getElementById(targetId);
+            if (!target) return;
+
+            const btn = document.querySelector('.collapse-toggle[data-target-id="' + targetId + '"]');
+
+            if (collapsed) {
+                target.classList.add('collapsed');
+                if (btn) {
+                    btn.dataset.expanded = 'false';
+                    btn.textContent = 'Развернуть';
+                }
+            } else {
+                target.classList.remove('collapsed');
+                if (btn) {
+                    btn.dataset.expanded = 'true';
+                    btn.textContent = 'Свернуть';
+                }
+            }
+        }
+
+        // --- Сворачивание / разворачивание по клику на кнопки ---
+        const collapseButtons = document.querySelectorAll('.collapse-toggle');
+
+        collapseButtons.forEach(function (btn) {
+            const targetId = btn.getAttribute('data-target-id');
+
+            // по умолчанию всё свернуто
+            setCollapsed(targetId, true);
+
+            btn.addEventListener('click', function () {
+                const id = this.getAttribute('data-target-id');
+                const expanded = this.dataset.expanded === 'true';
+                setCollapsed(id, expanded); // если было раскрыто -> свернуть, и наоборот
+                // внимание: логика в setCollapsed уже сама выставляет текст и dataset
+            });
+        });
+
+        // --- Фильтры ---
+        const globalSearchInput = document.getElementById('global-search');
+        const classFilterInput = document.getElementById('filter-class');
+        const studentFilterInput = document.getElementById('filter-student');
+        const minUnexcusedInput = document.getElementById('filter-min-unexcused');
+        const minAbsencesInput = document.getElementById('filter-min-absences');
+        const tableTypeSelect = document.getElementById('filter-table-type');
+
+        const rows = Array.from(document.querySelectorAll('tr[data-row-type]'));
+
+        function applyFilters() {
+            const search = (globalSearchInput.value || '').toLowerCase().trim();
+            const classFilter = (classFilterInput.value || '').toLowerCase().trim();
+            const studentFilter = (studentFilterInput.value || '').toLowerCase().trim();
+            const tableType = tableTypeSelect.value;
+
+            const minUnexcusedVal = minUnexcusedInput.value !== ''
+                ? parseInt(minUnexcusedInput.value, 10)
+                : null;
+
+            const minAbsencesVal = minAbsencesInput.value !== ''
+                ? parseInt(minAbsencesInput.value, 10)
+                : null;
+
+            const filtersActive =
+                !!search ||
+                !!classFilter ||
+                !!studentFilter ||
+                minUnexcusedVal !== null ||
+                minAbsencesVal !== null ||
+                tableType !== 'all';
+
+            rows.forEach(function (row) {
+                let visible = true;
+
+                const rowType = row.dataset.rowType;
+
+                // Фильтр по типу таблицы
+                if (tableType !== 'all' && rowType !== tableType) {
+                    visible = false;
+                }
+
+                const rowText = row.innerText.toLowerCase();
+                const rowClassName = (row.dataset.className || '').toLowerCase();
+                const rowStudentName = (row.dataset.studentName || '').toLowerCase();
+
+                // Общий текстовый поиск
+                if (visible && search) {
+                    if (!rowText.includes(search)) {
+                        visible = false;
+                    }
+                }
+
+                // Фильтр по классу
+                if (visible && classFilter) {
+                    if (!rowClassName.includes(classFilter)) {
+                        visible = false;
+                    }
+                }
+
+                // Фильтр по ученику
+                if (visible && studentFilter) {
+                    if (!rowStudentName.includes(studentFilter) && !rowText.includes(studentFilter)) {
+                        visible = false;
+                    }
+                }
+
+                // Мин. неуважительных (для дневных и по классам)
+                if (visible && minUnexcusedVal !== null) {
+                    let unexcused = null;
+                    if (row.dataset.unexcused) {
+                        unexcused = parseInt(row.dataset.unexcused, 10);
+                    } else if (row.dataset.totalUnexcused) {
+                        unexcused = parseInt(row.dataset.totalUnexcused, 10);
+                    }
+
+                    if (unexcused !== null && unexcused < minUnexcusedVal) {
+                        visible = false;
+                    }
+                }
+
+                // Мин. неявок ученика (только для строк по ученикам)
+                if (visible && minAbsencesVal !== null) {
+                    if (row.dataset.absenceCount) {
+                        const cnt = parseInt(row.dataset.absenceCount, 10);
+                        if (cnt < minAbsencesVal) {
+                            visible = false;
+                        }
+                    } else {
+                        // если фильтр по неявкам задан, строки без данных по ученику можно скрывать
+                        visible = false;
+                    }
+                }
+
+                row.style.display = visible ? '' : 'none';
+            });
+
+            // Дополнительно скрываем "пустые" дневные подкарты (когда по фильтрам нет строк)
+            const dayCards = document.querySelectorAll('.subcard[data-section="daily"]');
+            dayCards.forEach(function (card) {
+                const dayRows = card.querySelectorAll('tr[data-row-type="daily"]');
+                let anyVisible = false;
+                dayRows.forEach(function (r) {
+                    if (r.style.display !== 'none') {
+                        anyVisible = true;
+                    }
+                });
+                card.style.display = anyVisible ? '' : 'none';
+
+                // если фильтры активны и в этом дне остались строки — раскрываем подтаблицу
+                if (filtersActive && anyVisible) {
+                    const body = card.querySelector('.subcard-body');
+                    if (body && body.id) {
+                        setCollapsed(body.id, false);
+                    }
+                }
+            });
+
+            // Автораскрытие основных секций при активных фильтрах
+            if (filtersActive) {
+                if (tableType === 'all' || tableType === 'daily') {
+                    setCollapsed('daily-section-body', false);
+                }
+                if (tableType === 'all' || tableType === 'by_class') {
+                    setCollapsed('by-class-section-body', false);
+                }
+                if (tableType === 'all' || tableType === 'by_student') {
+                    setCollapsed('by-student-section-body', false);
+                }
+            }
+        }
+
+        [
+            globalSearchInput,
+            classFilterInput,
+            studentFilterInput,
+            minUnexcusedInput,
+            minAbsencesInput
+        ].forEach(function (input) {
+            if (!input) return;
+            input.addEventListener('input', applyFilters);
+        });
+
+        if (tableTypeSelect) {
+            tableTypeSelect.addEventListener('change', applyFilters);
+        }
+    })();
+</script>
 {% endblock %}
