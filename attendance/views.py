@@ -9,6 +9,7 @@ from django.shortcuts import render, redirect
 from django.utils import timezone
 
 from .models import ClassRoom, Student, AttendanceSummary, AbsentStudent
+from school_attendance.settings import DEBUG
 
 
 def is_deputy(user):
@@ -31,7 +32,14 @@ def index(request):
     - для завучей показывает все классы
     - данные всегда за текущий день (по Москве)
     """
-    today = timezone.localdate()  # с учётом TIME_ZONE = Europe/Moscow
+    if request.GET.get('test_date') and DEBUG:
+        try:
+            today = datetime.strptime(request.GET['test_date'], '%Y-%m-%d').date()
+        except ValueError:
+            today = timezone.localdate()
+    else:
+        today = timezone.localdate()
+
     user = request.user
     user_is_deputy = user.groups.filter(name='Завуч').exists()
 
@@ -70,19 +78,20 @@ def index(request):
 
             # если уже есть запись на сегодня, пропускаем (ввод один раз в день)
             if AttendanceSummary.objects.filter(
-                class_room=class_room,
-                date=today
+                    class_room=class_room,
+                    date=today
             ).exists():
                 continue
 
             reported_present_raw = request.POST.get(f'reported_present_{i}', '').strip()
             unexcused_absent_raw = request.POST.get(f'unexcused_absent_{i}', '').strip()
-
             # скрытое поле с id учеников, выбранных в модальном окне
             absent_students_raw = request.POST.get(f'absent_students_{class_id}', '').strip()
 
-            if not reported_present_raw and not unexcused_absent_raw and not absent_students_raw:
-                # пользователь вообще ничего не заполнил по этому классу
+            # если вообще ничего не введено по классу — пропускаем
+            if (not reported_present_raw
+                    and not unexcused_absent_raw
+                    and not absent_students_raw):
                 continue
 
             reported_present = int(reported_present_raw or 0)
@@ -92,9 +101,8 @@ def index(request):
             if absent_students_raw:
                 absent_ids = [int(x) for x in absent_students_raw.split(',') if x.strip()]
 
-            # автоматическое количество присутствующих = всего учеников - количество выбранных отсутствующих
-            total_students_in_class = class_room.students.filter(is_active=True).count()
-            present_auto = max(total_students_in_class - len(absent_ids), 0)
+            # колонка №2: фиксированное количество учеников в классе на этот день
+            present_auto = class_room.student_count
 
             summary = AttendanceSummary.objects.create(
                 class_room=class_room,
@@ -105,7 +113,7 @@ def index(request):
                 created_by=user,
             )
 
-            # Сохраняем конкретных отсутствующих
+            # сохраняем конкретных отсутствующих
             for sid in absent_ids:
                 try:
                     student = Student.objects.get(id=sid, class_room=class_room)

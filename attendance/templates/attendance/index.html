@@ -23,7 +23,7 @@
                 <thead>
                 <tr>
                     <th>Класс</th>
-                    <th>Присутствуют<br><span class="th-sub">(по списку, из БД)</span></th>
+                    <th>По списку<br><span class="th-sub">(ввести)</span></th>
                     <th>Пришло по факту<br><span class="th-sub">(ввести)</span></th>
                     <th>Отсутствуют по неуважительной причине<br><span class="th-sub">(ввести)</span></th>
                     <th>Отсутствующие ученики<br><span class="th-sub">(выбор из списка)</span></th>
@@ -42,7 +42,11 @@
                             {% if summary %}
                                 <span>{{ summary.present_count_auto }}</span>
                             {% else %}
-                                <span class="muted">будет рассчитано после сохранения</span>
+                                {% if class.student_count %}
+                                    <span>{{ class.student_count }}</span>
+                                {% else %}
+                                    <span class="muted">Не задано</span>
+                                {% endif %}
                             {% endif %}
                         </td>
 

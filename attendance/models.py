@@ -19,6 +19,10 @@ class ClassRoom(models.Model):
         related_name='classes',
         verbose_name='Классный руководитель'
     )
+    student_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Количество учеников в классе'
+    )
 
     class Meta:
         verbose_name = 'Класс'

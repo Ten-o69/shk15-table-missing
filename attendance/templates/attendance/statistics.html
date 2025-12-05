@@ -31,7 +31,6 @@
                             <thead>
                             <tr>
                                 <th>Класс</th>
-                                <th>Присутствуют (по списку)</th>
                                 <th>Пришло по факту</th>
                                 <th>Неуважительные</th>
                                 <th>Отсутствующие ученики</th>
@@ -41,7 +40,6 @@
                             {% for s in records %}
                                 <tr>
                                     <td>{{ s.class_room.name }}</td>
-                                    <td>{{ s.present_count_auto }}</td>
                                     <td>{{ s.present_count_reported }}</td>
                                     <td>{{ s.unexcused_absent_count }}</td>
                                     <td>
@@ -75,8 +73,7 @@
                     <thead>
                     <tr>
                         <th>Класс</th>
-                        <th>Всего присутствий (по списку)</th>
-                        <th>Всего пришедших (по факту)</th>
+                        <th>Всего пришедших</th>
                         <th>Всего неуважительных</th>
                     </tr>
                     </thead>
@@ -84,7 +81,6 @@
                     {% for row in monthly_by_class %}
                         <tr>
                             <td>{{ row.class_room__name }}</td>
-                            <td>{{ row.total_present_auto }}</td>
                             <td>{{ row.total_present_reported }}</td>
                             <td>{{ row.total_unexcused }}</td>
                         </tr>
