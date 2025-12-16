@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User, Group
-from attendance.models import ClassRoom, Student
+from database.models import ClassRoom, Student
 
 
 class Command(BaseCommand):

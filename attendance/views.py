@@ -8,7 +8,7 @@ from django.db.models import Sum, Count
 from django.shortcuts import render, redirect
 from django.utils import timezone
 
-from .models import ClassRoom, Student, AttendanceSummary, AbsentStudent
+from database.models import ClassRoom, Student, AttendanceSummary, AbsentStudent
 from school_attendance.settings import DEBUG
 
 

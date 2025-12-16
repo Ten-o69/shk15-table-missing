@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ClassRoom, Student, AttendanceSummary, AbsentStudent
+from database.models import ClassRoom, Student, AttendanceSummary, AbsentStudent
 
 
 @admin.register(ClassRoom)
