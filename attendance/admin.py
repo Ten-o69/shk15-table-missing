@@ -5,8 +5,9 @@ from database.models import ClassRoom, Student, AttendanceSummary, AbsentStudent
 @admin.register(ClassRoom)
 class ClassRoomAdmin(admin.ModelAdmin):
     list_display = ('name', 'teacher', 'student_count')
-    list_filter = ('teacher',)
     search_fields = ('name',)
+    list_filter = ('teacher',)
+    filter_horizontal = ('staff',)  # чтобы удобно выбирать несколько пользователей
 
 
 @admin.register(Student)

@@ -24,12 +24,13 @@ class UserLogoutView(LogoutView):
     pass
 
 
+
 @login_required
 def index(request):
     """
     Главная страница:
-    - показывает таблицу только по своим классам (для учителей)
-    - для завучей показывает все классы
+    - показывает таблицу только по тем классам, которые закреплены за пользователем (ClassRoom.staff)
+    - Завуч имеет доступ к странице статистики, учитель — нет (это контролируется группами)
     - данные всегда за текущий день (по Москве)
     """
     if request.GET.get('test_date') and DEBUG:
@@ -42,13 +43,13 @@ def index(request):
 
     user = request.user
     user_is_deputy = user.groups.filter(name='Завуч').exists()
+    user_is_teacher = user.groups.filter(name='Учитель').exists()
 
-    if user_is_deputy:
-        classes = ClassRoom.objects.all().order_by('name')
+    if user_is_deputy or user_is_teacher:
+        classes = ClassRoom.objects.filter(staff=user).order_by('name')
     else:
-        classes = ClassRoom.objects.filter(teacher=user).order_by('name')
+        classes = ClassRoom.objects.none()
 
-    # Сводки за сегодня по этим классам
     summaries = AttendanceSummary.objects.filter(
         date=today,
         class_room__in=classes
@@ -56,12 +57,12 @@ def index(request):
 
     summary_by_class = {s.class_room_id: s for s in summaries}
 
-    # Общие итоги по строке "ИТОГО"
-    totals = summaries.aggregate(
-        total_present_auto=Sum('present_count_auto'),
+    totals_saved = summaries.aggregate(
         total_present_reported=Sum('present_count_reported'),
         total_unexcused=Sum('unexcused_absent_count'),
     )
+
+    total_students_all_classes = sum(c.student_count for c in classes)
 
     if request.method == 'POST':
         row_count = int(request.POST.get('row_count', 0))
@@ -76,32 +77,78 @@ def index(request):
             except ClassRoom.DoesNotExist:
                 continue
 
-            # если уже есть запись на сегодня, пропускаем (ввод один раз в день)
+            # ввод только один раз в день
             if AttendanceSummary.objects.filter(
-                    class_room=class_room,
-                    date=today
+                class_room=class_room,
+                date=today
             ).exists():
                 continue
 
             reported_present_raw = request.POST.get(f'reported_present_{i}', '').strip()
             unexcused_absent_raw = request.POST.get(f'unexcused_absent_{i}', '').strip()
-            # скрытое поле с id учеников, выбранных в модальном окне
-            absent_students_raw = request.POST.get(f'absent_students_{class_id}', '').strip()
 
-            # если вообще ничего не введено по классу — пропускаем
+            # списки учеников (идут по id класса, а не индексу)
+            unexcused_students_raw = request.POST.get(f'absent_students_{class_id}', '').strip()
+            all_absent_students_raw = request.POST.get(f'all_absent_students_{class_id}', '').strip()
+
+            # если вообще ничего не ввели по классу — пропускаем
             if (not reported_present_raw
                     and not unexcused_absent_raw
-                    and not absent_students_raw):
+                    and not unexcused_students_raw
+                    and not all_absent_students_raw):
                 continue
 
+            # парсим количество и списки
             reported_present = int(reported_present_raw or 0)
-            unexcused_absent = int(unexcused_absent_raw or 0)
 
-            absent_ids = []
-            if absent_students_raw:
-                absent_ids = [int(x) for x in absent_students_raw.split(',') if x.strip()]
+            # список неуважительных (id учеников)
+            unexcused_ids = set()
+            if unexcused_students_raw:
+                for part in unexcused_students_raw.split(','):
+                    part = part.strip()
+                    if part:
+                        try:
+                            unexcused_ids.add(int(part))
+                        except ValueError:
+                            pass
 
-            # колонка №2: фиксированное количество учеников в классе на этот день
+            # список всех отсутствующих (id учеников)
+            all_absent_ids = set()
+            if all_absent_students_raw:
+                for part in all_absent_students_raw.split(','):
+                    part = part.strip()
+                    if part:
+                        try:
+                            all_absent_ids.add(int(part))
+                        except ValueError:
+                            pass
+
+            # число неуважительных по факту считаем по списку, а не по числу из инпута
+            unexcused_absent = len(unexcused_ids)
+
+            # СЕРВЕРНАЯ валидация (на случай, если фронт не сработал)
+            # 1) если есть неуважительные, то их количество должно совпадать с числом из поля
+            if unexcused_absent_raw:
+                try:
+                    typed_unexcused = int(unexcused_absent_raw)
+                except ValueError:
+                    typed_unexcused = None
+                if typed_unexcused is None or typed_unexcused != unexcused_absent:
+                    messages.error(
+                        request,
+                        f'Класс {class_room.name}: число неуважительных не совпадает со списком учеников.'
+                    )
+                    return redirect('index')
+
+            # 2) если есть неуважительные, то все они должны входить в список "все отсутствующие"
+            if unexcused_ids:
+                if not all_absent_ids or not unexcused_ids.issubset(all_absent_ids):
+                    messages.error(
+                        request,
+                        f'Класс {class_room.name}: список всех отсутствующих должен включать всех с неуважительной причиной.'
+                    )
+                    return redirect('index')
+
             present_auto = class_room.student_count
 
             summary = AttendanceSummary.objects.create(
@@ -113,18 +160,33 @@ def index(request):
                 created_by=user,
             )
 
-            # сохраняем конкретных отсутствующих
-            for sid in absent_ids:
+            # создаём записи об отсутствующих учениках
+            # если all_absent_ids пустой, но есть неуважительные — считаем,
+            # что отсутствуют только они
+            if not all_absent_ids and unexcused_ids:
+                all_absent_ids = set(unexcused_ids)
+
+            for sid in all_absent_ids:
                 try:
                     student = Student.objects.get(id=sid, class_room=class_room)
                 except Student.DoesNotExist:
                     continue
-                AbsentStudent.objects.create(attendance=summary, student=student)
+
+                reason = (
+                    AbsentStudent.Reason.UNEXCUSED
+                    if sid in unexcused_ids
+                    else AbsentStudent.Reason.EXCUSED
+                )
+
+                AbsentStudent.objects.create(
+                    attendance=summary,
+                    student=student,
+                    reason=reason,
+                )
 
         messages.success(request, 'Данные за сегодня сохранены (там, где их ещё не было).')
         return redirect('index')
 
-    # для модальных окон нужен список учеников по классам
     students_by_class = {
         c.id: list(c.students.filter(is_active=True).order_by('full_name'))
         for c in classes
@@ -134,7 +196,8 @@ def index(request):
         'today': today,
         'classes': classes,
         'summary_by_class': summary_by_class,
-        'totals': totals,
+        'totals_saved': totals_saved,
+        'total_students_all_classes': total_students_all_classes,
         'students_by_class': students_by_class,
     }
     return render(request, 'attendance/index.html', context)
@@ -192,7 +255,8 @@ def statistics(request):
     # статистика по ученикам: сколько раз не пришёл в этом месяце
     absences_qs = AbsentStudent.objects.filter(
         attendance__date__year=year,
-        attendance__date__month=month
+        attendance__date__month=month,
+        reason=AbsentStudent.Reason.UNEXCUSED,  # считаем только неуважительные
     ).select_related('student', 'attendance__class_room')
 
     per_student = absences_qs.values(

@@ -14,187 +14,375 @@
         </p>
     </div>
 
-    <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="row_count" value="{{ classes|length }}">
+    <div class="filters-row">
+        <label>
+            Поиск по классу:
+            <input id="main-table-search"
+                   type="text"
+                   class="input"
+                   placeholder="Например: 1В, 2А, 3Б">
+        </label>
+    </div>
 
-        <div class="table-wrapper">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>Класс</th>
-                    <th>По списку<br><span class="th-sub">(ввести)</span></th>
-                    <th>Пришло по факту<br><span class="th-sub">(ввести)</span></th>
-                    <th>Отсутствуют по неуважительной причине<br><span class="th-sub">(ввести)</span></th>
-                    <th>Отсутствующие ученики<br><span class="th-sub">(выбор из списка)</span></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for class in classes %}
-                    {% with summary=summary_by_class|dict_get:class.id %}
-                    <tr class="table-row">
-                        <td class="text-bold">
-                            {{ class.name }}
-                            <input type="hidden" name="class_{{ forloop.counter0 }}" value="{{ class.id }}">
-                        </td>
+    <div class="card-section">
+        <div class="section-header">
+            <h2>Таблица по классам</h2>
+        </div>
 
-                        <td>
-                            {% if summary %}
-                                <span>{{ summary.present_count_auto }}</span>
-                            {% else %}
-                                {% if class.student_count %}
-                                    <span>{{ class.student_count }}</span>
-                                {% else %}
-                                    <span class="muted">Не задано</span>
-                                {% endif %}
-                            {% endif %}
-                        </td>
+        <div id="main-table-body">
+            <div class="daily-summary">
+                <span class="muted">Итого по видимым классам:</span>
+                <span class="daily-summary-item">
+                    По списку:
+                    <span class="text-bold">
+                        {{ total_students_all_classes|default:"0" }}
+                    </span>
+                </span>
+                <span class="daily-summary-item">
+                    Пришло по факту:
+                    <span class="text-bold">
+                        {{ totals_saved.total_present_reported|default:"0" }}
+                    </span>
+                </span>
+                <span class="daily-summary-item">
+                    Неуважительные:
+                    <span class="text-bold">
+                        {{ totals_saved.total_unexcused|default:"0" }}
+                    </span>
+                </span>
+            </div>
 
-                        <td>
-                            {% if summary %}
-                                <span>{{ summary.present_count_reported }}</span>
-                            {% else %}
-                                <input type="number"
-                                       name="reported_present_{{ forloop.counter0 }}"
-                                       class="input"
-                                       min="0"
-                                       placeholder="Введите количество">
-                            {% endif %}
-                        </td>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="row_count" value="{{ classes|length }}">
 
-                        <td>
-                            {% if summary %}
-                                <span>{{ summary.unexcused_absent_count }}</span>
-                            {% else %}
-                                <input type="number"
-                                       name="unexcused_absent_{{ forloop.counter0 }}"
-                                       class="input"
-                                       min="0"
-                                       placeholder="Введите количество">
-                            {% endif %}
-                        </td>
+                <div class="table-wrapper">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>Класс</th>
+                            <th>По списку<br><span class="th-sub">(кол-во учеников в классе)</span></th>
+                            <th>Пришло по факту<br><span class="th-sub">(ввести)</span></th>
+                            <th>Отсутствуют по неуважительной причине<br><span class="th-sub">(ввести количество)</span></th>
+                            <th>Ученики с неуважительной причиной<br><span class="th-sub">(выбор из списка)</span></th>
+                            <th>Все отсутствующие ученики<br><span class="th-sub">(уважительные + неуважительные)</span></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for class in classes %}
+                            {% with summary=summary_by_class|dict_get:class.id %}
+                            <tr class="table-row"
+                                data-class-name="{{ class.name|lower }}"
+                                data-class-id="{{ class.id }}">
+                                <td class="text-bold">
+                                    {{ class.name }}
+                                    <input type="hidden" name="class_{{ forloop.counter0 }}" value="{{ class.id }}">
+                                </td>
 
-                        <td>
-                            {% if summary %}
-                                {% with absents=summary.absent_students.all %}
-                                    {% if absents %}
-                                        <ul class="pill-list">
-                                            {% for a in absents %}
-                                                <li class="pill">{{ a.student.full_name }}</li>
-                                            {% endfor %}
-                                        </ul>
+                                <td>
+                                    {% if summary %}
+                                        <span>{{ summary.present_count_auto }}</span>
                                     {% else %}
-                                        <span class="muted">Отсутствующих не выбрано</span>
+                                        {% if class.student_count %}
+                                            <span>{{ class.student_count }}</span>
+                                        {% else %}
+                                            <span class="muted">Задайте число в админке</span>
+                                        {% endif %}
                                     {% endif %}
-                                {% endwith %}
-                            {% else %}
-                                <div class="absent-cell">
-                                    <button type="button"
-                                            class="btn btn-small btn-outline open-modal-btn"
-                                            data-class-id="{{ class.id }}">
-                                        Выбрать отсутствующих
-                                    </button>
-                                    <input type="hidden"
-                                           id="absent-students-{{ class.id }}"
-                                           name="absent_students_{{ class.id }}">
-                                    <div class="selected-students" id="selected-students-{{ class.id }}">
-                                        <span class="muted">Ученики не выбраны</span>
-                                    </div>
-                                </div>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endwith %}
-                {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center muted">
-                            Классы не найдены. Проверьте, что они созданы в админке.
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
+                                </td>
+
+                                <td>
+                                    {% if summary %}
+                                        <span>{{ summary.present_count_reported }}</span>
+                                    {% else %}
+                                        <input type="number"
+                                               name="reported_present_{{ forloop.counter0 }}"
+                                               class="input"
+                                               min="0"
+                                               placeholder="Введите количество">
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if summary %}
+                                        <span>{{ summary.unexcused_absent_count }}</span>
+                                    {% else %}
+                                        <input type="number"
+                                               name="unexcused_absent_{{ forloop.counter0 }}"
+                                               class="input"
+                                               min="0"
+                                               placeholder="Введите количество">
+                                    {% endif %}
+                                </td>
+
+                                {# Колонка: уч-ся с неуважительной причиной #}
+                                <td>
+                                    {% if summary %}
+                                        {% if summary.absent_students.all %}
+                                            <ul class="pill-list">
+                                                {% for a in summary.absent_students.all %}
+                                                    {% if a.reason == 'unexcused' %}
+                                                        <li class="pill">{{ a.student.full_name }}</li>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="muted">Нет данных</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="absent-cell">
+                                            <button type="button"
+                                                    class="btn btn-small btn-outline open-modal-btn"
+                                                    data-class-id="{{ class.id }}"
+                                                    data-mode="unexcused">
+                                                Выбрать неуважительные
+                                            </button>
+                                            <input type="hidden"
+                                                   id="absent-students-{{ class.id }}"
+                                                   name="absent_students_{{ class.id }}">
+                                            <div class="selected-students" id="selected-students-{{ class.id }}">
+                                                <span class="muted">Ученики не выбраны</span>
+                                            </div>
+                                            <div class="field-error" id="error-{{ class.id }}"></div>
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+                                {# Колонка: все отсутствующие ученики #}
+                                <td>
+                                    {% if summary %}
+                                        {% if summary.absent_students.all %}
+                                            <ul class="pill-list">
+                                                {% for a in summary.absent_students.all %}
+                                                    <li class="pill">{{ a.student.full_name }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="muted">Нет данных</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="absent-cell">
+                                            <button type="button"
+                                                    class="btn btn-small btn-outline open-modal-btn"
+                                                    data-class-id="{{ class.id }}"
+                                                    data-mode="all">
+                                                Выбрать всех отсутствующих
+                                            </button>
+                                            <input type="hidden"
+                                                   id="all-absent-students-{{ class.id }}"
+                                                   name="all_absent_students_{{ class.id }}">
+                                            <div class="selected-all-students" id="selected-all-students-{{ class.id }}">
+                                                <span class="muted">Ученики не выбраны</span>
+                                            </div>
+                                            <div class="field-error" id="error-all-{{ class.id }}"></div>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endwith %}
+                        {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center muted">
+                                    Классы не найдены. Проверьте, что они созданы в админке
+                                    и закреплены за вашим пользователем.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
                 {% if classes %}
-                    <tfoot>
-                    <tr class="table-footer">
-                        <td class="text-bold">ИТОГО</td>
-                        <td>{{ totals.total_present_auto|default:"0" }}</td>
-                        <td>{{ totals.total_present_reported|default:"0" }}</td>
-                        <td>{{ totals.total_unexcused|default:"0" }}</td>
-                        <td></td>
-                    </tr>
-                    </tfoot>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            Сохранить данные
+                        </button>
+                    </div>
                 {% endif %}
-            </table>
+            </form>
         </div>
-
-        {% if classes %}
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">
-                    Сохранить данные
-                </button>
-            </div>
-        {% endif %}
-    </form>
-</div>
-
-{# Скрытые контейнеры со списками учеников по классам для модального окна #}
-{% for class in classes %}
-    <div id="students-container-{{ class.id }}" class="hidden-students-container">
-        {% with students=students_by_class|dict_get:class.id %}
-            {% for student in students %}
-                <div class="student-option"
-                     data-student-id="{{ student.id }}"
-                     data-student-name="{{ student.full_name }}">
-                    {{ student.full_name }}
-                </div>
-            {% endfor %}
-        {% endwith %}
     </div>
-{% endfor %}
 
-{# Модальное окно #}
-<div id="students-modal" class="modal-overlay hidden">
-    <div class="modal">
-        <div class="modal-header">
-            <h2>Выбор отсутствующих учеников</h2>
+    {# Скрытые контейнеры со списками учеников по классам для модального окна #}
+    {% for class in classes %}
+        <div id="students-container-{{ class.id }}" class="hidden-students-container">
+            {% with students=students_by_class|dict_get:class.id %}
+                {% for student in students %}
+                    <div class="student-option"
+                         data-student-id="{{ student.id }}"
+                         data-student-name="{{ student.full_name }}">
+                        {{ student.full_name }}
+                    </div>
+                {% endfor %}
+            {% endwith %}
         </div>
-        <div class="modal-body">
-            <input type="text"
-                   id="student-search"
-                   class="input input-full"
-                   placeholder="Поиск по ФИО...">
-            <div id="students-list" class="students-list">
-                <!-- сюда динамически подставляются ученики -->
+    {% endfor %}
+
+    {# Модальное окно выбора учеников #}
+    <div id="students-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Выбор отсутствующих учеников</h2>
             </div>
-        </div>
-        <div class="modal-footer">
-            <button type="button" id="modal-cancel" class="btn btn-outline">Отмена</button>
-            <button type="button" id="modal-apply" class="btn btn-primary">Применить</button>
+            <div class="modal-body">
+                <input type="text"
+                       id="student-search"
+                       class="input input-full"
+                       placeholder="Поиск по ФИО...">
+                <div id="students-list" class="students-list">
+                    <!-- сюда динамически подставляются ученики -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="modal-cancel" class="btn btn-outline">Отмена</button>
+                <button type="button" id="modal-apply" class="btn btn-primary">Применить</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
+    // === Валидация: числовое поле неуважительных vs список неуважительных ===
+    function validateUnexcusedForClass(classId) {
+        const row = document.querySelector('tr[data-class-id="' + classId + '"]');
+        if (!row) return;
+
+        const input = row.querySelector('input[name^="unexcused_absent_"]');
+        const errorEl = document.getElementById('error-' + classId);
+        const hiddenField = document.getElementById('absent-students-' + classId);
+
+        if (!errorEl || !hiddenField) return;
+
+        // уже сохранённая строка
+        if (!input) {
+            errorEl.textContent = '';
+            errorEl.style.display = 'none';
+            return;
+        }
+
+        const rawValue = (input.value || '').trim();
+        const countValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
+
+        const selectedRaw = hiddenField.value || '';
+        const ids = selectedRaw
+            ? selectedRaw.split(',').filter(function (s) { return s.trim() !== ''; })
+            : [];
+        const selectedCount = ids.length;
+
+        let hasError = false;
+
+        if (isNaN(countValue) || countValue < 0) {
+            hasError = true;
+        } else if (countValue === 0 && selectedCount === 0) {
+            hasError = false;
+        } else if (countValue !== selectedCount) {
+            hasError = true;
+        }
+
+        if (hasError) {
+            errorEl.textContent =
+                'Число неуважительных (' + (isNaN(countValue) ? '—' : countValue) +
+                ') должно совпадать с количеством выбранных учеников (' + selectedCount + ').';
+            errorEl.style.display = 'block';
+            errorEl.style.color = '#ff6b6b';
+
+            input.style.borderColor = '#ff6b6b';
+            input.style.backgroundColor = 'rgba(255, 107, 107, 0.08)';
+        } else {
+            errorEl.textContent = '';
+            errorEl.style.display = 'none';
+
+            input.style.borderColor = '';
+            input.style.backgroundColor = '';
+        }
+    }
+
+    // === Валидация: все отсутствующие vs неуважительные ===
+    function validateAllAbsentForClass(classId) {
+        const allField = document.getElementById('all-absent-students-' + classId);
+        const unexcusedField = document.getElementById('absent-students-' + classId);
+        const errorEl = document.getElementById('error-all-' + classId);
+
+        if (!allField || !unexcusedField || !errorEl) return;
+
+        const allRaw = allField.value || '';
+        const allIds = allRaw
+            ? allRaw.split(',').map(function (s) { return s.trim(); }).filter(Boolean)
+            : [];
+
+        const unexcusedRaw = unexcusedField.value || '';
+        const unexcusedIds = unexcusedRaw
+            ? unexcusedRaw.split(',').map(function (s) { return s.trim(); }).filter(Boolean)
+            : [];
+
+        let hasError = false;
+
+        if (unexcusedIds.length === 0) {
+            // нет неуважительных — никаких требований к списку всех отсутствующих
+            hasError = false;
+        } else {
+            // есть неуважительные: в списке "все отсутствующие" должны быть хотя бы они
+            if (allIds.length === 0) {
+                hasError = true;
+            } else {
+                unexcusedIds.forEach(function (id) {
+                    if (!allIds.includes(id)) {
+                        hasError = true;
+                    }
+                });
+            }
+        }
+
+        if (hasError) {
+            errorEl.textContent =
+                'В списке всех отсутствующих должны быть как минимум все ученики с неуважительной причиной.';
+            errorEl.style.display = 'block';
+            errorEl.style.color = '#ff6b6b';
+        } else {
+            errorEl.textContent = '';
+            errorEl.style.display = 'none';
+        }
+    }
+
+    // === Модальное окно выбора учеников (общая логика для двух колонок) ===
     (function () {
         const modal = document.getElementById('students-modal');
         const searchInput = document.getElementById('student-search');
         const studentsList = document.getElementById('students-list');
         const cancelBtn = document.getElementById('modal-cancel');
         const applyBtn = document.getElementById('modal-apply');
-        let currentClassId = null;
 
-        function openModal(classId) {
+        let currentClassId = null;
+        let currentMode = null; // 'unexcused' | 'all'
+
+        function getHiddenFieldId(classId, mode) {
+            return mode === 'all'
+                ? 'all-absent-students-' + classId
+                : 'absent-students-' + classId;
+        }
+
+        function getSelectedContainerId(classId, mode) {
+            return mode === 'all'
+                ? 'selected-all-students-' + classId
+                : 'selected-students-' + classId;
+        }
+
+        function openModal(classId, mode) {
             currentClassId = classId;
+            currentMode = mode || 'unexcused';
+
             searchInput.value = '';
             studentsList.innerHTML = '';
 
             const container = document.getElementById('students-container-' + classId);
             if (!container) return;
 
-            const hiddenField = document.getElementById('absent-students-' + classId);
-            const selectedRaw = hiddenField.value || '';
-            const selectedIds = selectedRaw ? selectedRaw.split(',').map(s => s.trim()) : [];
+            const hiddenFieldId = getHiddenFieldId(classId, currentMode);
+            const hiddenField = document.getElementById(hiddenFieldId);
+            const selectedRaw = hiddenField ? (hiddenField.value || '') : '';
+            const selectedIds = selectedRaw
+                ? selectedRaw.split(',').map(function (s) { return s.trim(); })
+                : [];
 
             container.querySelectorAll('.student-option').forEach(function (item) {
                 const id = item.dataset.studentId;
@@ -226,13 +414,22 @@
         function closeModal() {
             modal.classList.add('hidden');
             currentClassId = null;
+            currentMode = null;
         }
 
         function applySelection() {
-            if (!currentClassId) return;
+            if (!currentClassId || !currentMode) return;
 
-            const hiddenField = document.getElementById('absent-students-' + currentClassId);
-            const selectedContainer = document.getElementById('selected-students-' + currentClassId);
+            const hiddenFieldId = getHiddenFieldId(currentClassId, currentMode);
+            const selectedContainerId = getSelectedContainerId(currentClassId, currentMode);
+
+            const hiddenField = document.getElementById(hiddenFieldId);
+            const selectedContainer = document.getElementById(selectedContainerId);
+
+            if (!hiddenField || !selectedContainer) {
+                closeModal();
+                return;
+            }
 
             const checked = studentsList.querySelectorAll('input[type="checkbox"]:checked');
             const ids = [];
@@ -263,10 +460,14 @@
                 selectedContainer.appendChild(ul);
             }
 
+            // после изменений всегда проверяем обе логики
+            validateUnexcusedForClass(currentClassId);
+            validateAllAbsentForClass(currentClassId);
+
             closeModal();
         }
 
-        // фильтрация по поиску
+        // фильтрация по поиску в модалке
         searchInput.addEventListener('input', function () {
             const term = this.value.toLowerCase();
             studentsList.querySelectorAll('.student-row').forEach(function (row) {
@@ -275,11 +476,12 @@
             });
         });
 
-        // открытие модалки по кнопке
+        // открытие модалки по кнопке (оба режима)
         document.querySelectorAll('.open-modal-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 const classId = this.dataset.classId;
-                openModal(classId);
+                const mode = this.dataset.mode || 'unexcused';
+                openModal(classId, mode);
             });
         });
 
@@ -297,6 +499,70 @@
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
                 closeModal();
+            }
+        });
+    })();
+
+    // Поиск по таблице по классу
+    (function () {
+        const searchInput = document.getElementById('main-table-search');
+        const rows = document.querySelectorAll('tr[data-class-name]');
+
+        if (!searchInput) return;
+
+        searchInput.addEventListener('input', function () {
+            const term = this.value.toLowerCase().trim();
+
+            rows.forEach(function (row) {
+                const className = (row.dataset.className || '').toLowerCase();
+                if (!term || className.includes(term)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    })();
+
+    // Валидация при вводе количества и при отправке формы
+    (function () {
+        // при вводе числа неуважительных сразу проверяем
+        document.querySelectorAll('tr[data-class-id] input[name^="unexcused_absent_"]').forEach(function (input) {
+            input.addEventListener('input', function () {
+                const row = this.closest('tr[data-class-id]');
+                if (!row) return;
+                const classId = row.dataset.classId;
+                validateUnexcusedForClass(classId);
+                validateAllAbsentForClass(classId);
+            });
+        });
+
+        const form = document.querySelector('#main-table-body form');
+        if (!form) return;
+
+        form.addEventListener('submit', function (e) {
+            let hasError = false;
+
+            document.querySelectorAll('tr[data-class-id]').forEach(function (row) {
+                const classId = row.dataset.classId;
+                const input = row.querySelector('input[name^="unexcused_absent_"]');
+                if (!input) return; // строка уже сохранена
+
+                validateUnexcusedForClass(classId);
+                validateAllAbsentForClass(classId);
+
+                const err1 = document.getElementById('error-' + classId);
+                const err2 = document.getElementById('error-all-' + classId);
+
+                if ((err1 && err1.textContent.trim() !== '') ||
+                    (err2 && err2.textContent.trim() !== '')) {
+                    hasError = true;
+                }
+            });
+
+            if (hasError) {
+                e.preventDefault();
+                alert('Исправьте строки с ошибками: число неуважительных должно совпадать со списком, а все отсутствующие должны включать учеников с неуважительной причиной.');
             }
         });
     })();

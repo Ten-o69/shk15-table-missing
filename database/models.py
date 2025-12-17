@@ -3,9 +3,6 @@ from django.db import models
 
 
 class ClassRoom(models.Model):
-    """
-    Школьный класс, например '1В'.
-    """
     name = models.CharField(
         max_length=10,
         unique=True,
@@ -16,12 +13,22 @@ class ClassRoom(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='classes',
-        verbose_name='Классный руководитель'
+        related_name='classes_as_homeroom',
+        verbose_name='Классный руководитель',
+        help_text='Необязательное поле. Для информации.'
     )
     student_count = models.PositiveIntegerField(
         default=0,
         verbose_name='Количество учеников в классе'
+    )
+
+    # НОВОЕ ПОЛЕ
+    staff = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name='assigned_classes',
+        verbose_name='Закреплённые сотрудники (учителя / завучи)',
+        help_text='Пользователи, которые видят этот класс на главной странице.'
     )
 
     class Meta:
@@ -113,26 +120,33 @@ class AttendanceSummary(models.Model):
 
 
 class AbsentStudent(models.Model):
-    """
-    Конкретные отсутствующие ученики по сводке.
-    """
+    class Reason(models.TextChoices):
+        UNEXCUSED = 'unexcused', 'Неуважительная причина'
+        EXCUSED = 'excused', 'Уважительная причина'
+
     attendance = models.ForeignKey(
-        AttendanceSummary,
+        'AttendanceSummary',
         on_delete=models.CASCADE,
         related_name='absent_students',
-        verbose_name='Сводка'
+        verbose_name='Запись посещаемости'
     )
     student = models.ForeignKey(
-        Student,
+        'Student',
         on_delete=models.CASCADE,
-        related_name='absence_records',
+        related_name='absences',
         verbose_name='Ученик'
+    )
+    reason = models.CharField(
+        max_length=20,
+        choices=Reason.choices,
+        default=Reason.UNEXCUSED,
+        verbose_name='Причина отсутствия'
     )
 
     class Meta:
-        verbose_name = 'Отсутствующий ученик'
-        verbose_name_plural = 'Отсутствующие ученики'
+        verbose_name = 'Отсутствие ученика'
+        verbose_name_plural = 'Отсутствия учеников'
         unique_together = ('attendance', 'student')
 
     def __str__(self):
-        return f'{self.student} отсутствует {self.attendance.date}'
+        return f'{self.student} ({self.get_reason_display()}) {self.attendance.date}'
