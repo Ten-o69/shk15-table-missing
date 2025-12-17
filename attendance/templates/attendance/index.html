@@ -50,6 +50,24 @@
                         {{ totals_saved.total_unexcused|default:"0" }}
                     </span>
                 </span>
+                <span class="daily-summary-item">
+                    ОРВИ:
+                    <span class="text-bold">
+                        {{ totals_saved.total_orvi|default:"0" }}
+                    </span>
+                </span>
+                <span class="daily-summary-item">
+                    Другие заболевания:
+                    <span class="text-bold">
+                        {{ totals_saved.total_other_disease|default:"0" }}
+                    </span>
+                </span>
+                <span class="daily-summary-item">
+                    По семейным обстоятельствам:
+                    <span class="text-bold">
+                        {{ totals_saved.total_family|default:"0" }}
+                    </span>
+                </span>
             </div>
 
             <form method="post">
@@ -65,6 +83,9 @@
                             <th>Пришло по факту<br><span class="th-sub">(ввести)</span></th>
                             <th>Отсутствуют по неуважительной причине<br><span class="th-sub">(ввести количество)</span></th>
                             <th>Ученики с неуважительной причиной<br><span class="th-sub">(выбор из списка)</span></th>
+                            <th>ОРВИ<br><span class="th-sub">(ввести количество)</span></th>
+                            <th>Другие заболевания<br><span class="th-sub">(ввести количество)</span></th>
+                            <th>По семейным обстоятельствам<br><span class="th-sub">(ввести количество)</span></th>
                             <th>Все отсутствующие ученики<br><span class="th-sub">(уважительные + неуважительные)</span></th>
                         </tr>
                         </thead>
@@ -73,7 +94,8 @@
                             {% with summary=summary_by_class|dict_get:class.id %}
                             <tr class="table-row"
                                 data-class-name="{{ class.name|lower }}"
-                                data-class-id="{{ class.id }}">
+                                data-class-id="{{ class.id }}"
+                                data-total-students="{% if summary %}{{ summary.present_count_auto }}{% else %}{{ class.student_count|default:'0' }}{% endif %}">
                                 <td class="text-bold">
                                     {{ class.name }}
                                     <input type="hidden" name="class_{{ forloop.counter0 }}" value="{{ class.id }}">
@@ -115,7 +137,7 @@
                                     {% endif %}
                                 </td>
 
-                                {# Колонка: уч-ся с неуважительной причиной #}
+                                {# Колонка: ученики с неуважительной причиной #}
                                 <td>
                                     {% if summary %}
                                         {% if summary.absent_students.all %}
@@ -145,6 +167,45 @@
                                             </div>
                                             <div class="field-error" id="error-{{ class.id }}"></div>
                                         </div>
+                                    {% endif %}
+                                </td>
+
+                                {# ОРВИ #}
+                                <td>
+                                    {% if summary %}
+                                        <span>{{ summary.orvi_count }}</span>
+                                    {% else %}
+                                        <input type="number"
+                                               name="orvi_{{ forloop.counter0 }}"
+                                               class="input"
+                                               min="0"
+                                               placeholder="ОРВИ">
+                                    {% endif %}
+                                </td>
+
+                                {# Другие заболевания #}
+                                <td>
+                                    {% if summary %}
+                                        <span>{{ summary.other_disease_count }}</span>
+                                    {% else %}
+                                        <input type="number"
+                                               name="other_disease_{{ forloop.counter0 }}"
+                                               class="input"
+                                               min="0"
+                                               placeholder="Другие заболевания">
+                                    {% endif %}
+                                </td>
+
+                                {# По семейным обстоятельствам #}
+                                <td>
+                                    {% if summary %}
+                                        <span>{{ summary.family_reason_count }}</span>
+                                    {% else %}
+                                        <input type="number"
+                                               name="family_{{ forloop.counter0 }}"
+                                               class="input"
+                                               min="0"
+                                               placeholder="По семейным">
                                     {% endif %}
                                 </td>
 
@@ -182,7 +243,7 @@
                             {% endwith %}
                         {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center muted">
+                                <td colspan="9" class="text-center muted">
                                     Классы не найдены. Проверьте, что они созданы в админке
                                     и закреплены за вашим пользователем.
                                 </td>
@@ -242,6 +303,85 @@
 </div>
 
 <script>
+    // Универсальный парсер int
+    function parseIntSafe(value) {
+        if (value === null || value === undefined) return 0;
+        value = String(value).trim();
+        if (value === '') return 0;
+        const n = parseInt(value, 10);
+        return isNaN(n) ? 0 : n;
+    }
+
+    // === Валидация: числовые поля (присутствующие / все типы отсутствий) против "по списку" ===
+    function validateCountsForClass(classId) {
+        const row = document.querySelector('tr[data-class-id="' + classId + '"]');
+        if (!row) return true;
+
+        const totalStudents = parseIntSafe(row.dataset.totalStudents || '0');
+        if (!totalStudents) {
+            // если нет данных о количестве по списку, не жёстко валидируем
+            return true;
+        }
+
+        const presentInput = row.querySelector('input[name^="reported_present_"]');
+        const unexcusedInput = row.querySelector('input[name^="unexcused_absent_"]');
+        const orviInput = row.querySelector('input[name^="orvi_"]');
+        const otherInput = row.querySelector('input[name^="other_disease_"]');
+        const familyInput = row.querySelector('input[name^="family_"]');
+
+        const present = presentInput ? parseIntSafe(presentInput.value) : 0;
+        const unexcused = unexcusedInput ? parseIntSafe(unexcusedInput.value) : 0;
+        const orvi = orviInput ? parseIntSafe(orviInput.value) : 0;
+        const other = otherInput ? parseIntSafe(otherInput.value) : 0;
+        const family = familyInput ? parseIntSafe(familyInput.value) : 0;
+
+        let ok = true;
+
+        function resetField(input) {
+            if (!input) return;
+            input.style.borderColor = '';
+            input.style.backgroundColor = '';
+            input.removeAttribute('data-invalid');
+        }
+
+        function markInvalid(input) {
+            if (!input) return;
+            input.style.borderColor = '#ff6b6b';
+            input.style.backgroundColor = 'rgba(255, 107, 107, 0.08)';
+            input.setAttribute('data-invalid', '1');
+        }
+
+        [presentInput, unexcusedInput, orviInput, otherInput, familyInput].forEach(resetField);
+
+        function checkField(input, value) {
+            if (!input) return;
+            if (value < 0 || value > totalStudents) {
+                ok = false;
+                markInvalid(input);
+            }
+        }
+
+        // каждое поле отдельно не может быть <0 или > "по списку"
+        checkField(presentInput, present);
+        checkField(unexcusedInput, unexcused);
+        checkField(orviInput, orvi);
+        checkField(otherInput, other);
+        checkField(familyInput, family);
+
+        const totalAbsent = unexcused + orvi + other + family;
+
+        // суммарно пришедшие + все отсутствующие не могут превышать "по списку"
+        if (present + totalAbsent > totalStudents) {
+            [presentInput, unexcusedInput, orviInput, otherInput, familyInput].forEach(function (input) {
+                if (!input) return;
+                markInvalid(input);
+            });
+            ok = false;
+        }
+
+        return ok;
+    }
+
     // === Валидация: числовое поле неуважительных vs список неуважительных ===
     function validateUnexcusedForClass(classId) {
         const row = document.querySelector('tr[data-class-id="' + classId + '"]');
@@ -292,6 +432,7 @@
             errorEl.textContent = '';
             errorEl.style.display = 'none';
 
+            // цвет сбросим, но validateCountsForClass всё равно может перекрасить, если там ошибка
             input.style.borderColor = '';
             input.style.backgroundColor = '';
         }
@@ -318,10 +459,8 @@
         let hasError = false;
 
         if (unexcusedIds.length === 0) {
-            // нет неуважительных — никаких требований к списку всех отсутствующих
             hasError = false;
         } else {
-            // есть неуважительные: в списке "все отсутствующие" должны быть хотя бы они
             if (allIds.length === 0) {
                 hasError = true;
             } else {
@@ -460,9 +599,70 @@
                 selectedContainer.appendChild(ul);
             }
 
-            // после изменений всегда проверяем обе логики
+            // АВТО-ДОБАВЛЕНИЕ: все неуважительные автоматически попадают в "все отсутствующие"
+            if (currentMode === 'unexcused') {
+                const allField = document.getElementById('all-absent-students-' + currentClassId);
+                const allContainer = document.getElementById('selected-all-students-' + currentClassId);
+
+                if (allField && allContainer) {
+                    const allRaw = allField.value || '';
+                    const existingAllIds = allRaw
+                        ? allRaw.split(',').map(function (s) { return s.trim(); }).filter(Boolean)
+                        : [];
+
+                    const seen = new Set();
+                    const unionIds = [];
+
+                    existingAllIds.forEach(function (id) {
+                        if (!seen.has(id)) {
+                            seen.add(id);
+                            unionIds.push(id);
+                        }
+                    });
+
+                    ids.forEach(function (id) {
+                        if (!seen.has(id)) {
+                            seen.add(id);
+                            unionIds.push(id);
+                        }
+                    });
+
+                    allField.value = unionIds.join(',');
+
+                    allContainer.innerHTML = '';
+                    if (unionIds.length === 0) {
+                        const span = document.createElement('span');
+                        span.className = 'muted';
+                        span.textContent = 'Ученики не выбраны';
+                        allContainer.appendChild(span);
+                    } else {
+                        const ulAll = document.createElement('ul');
+                        ulAll.className = 'pill-list';
+
+                        unionIds.forEach(function (id) {
+                            const checkbox = studentsList.querySelector('input[type="checkbox"][value="' + id + '"]');
+                            let nameText = 'ID ' + id;
+                            if (checkbox) {
+                                const lbl = checkbox.parentElement.querySelector('span');
+                                if (lbl) {
+                                    nameText = lbl.textContent;
+                                }
+                            }
+                            const li = document.createElement('li');
+                            li.className = 'pill';
+                            li.textContent = nameText;
+                            ulAll.appendChild(li);
+                        });
+
+                        allContainer.appendChild(ulAll);
+                    }
+                }
+            }
+
+            // после изменений всегда проверяем все логики для строки
             validateUnexcusedForClass(currentClassId);
             validateAllAbsentForClass(currentClassId);
+            validateCountsForClass(currentClassId);
 
             closeModal();
         }
@@ -526,14 +726,23 @@
 
     // Валидация при вводе количества и при отправке формы
     (function () {
-        // при вводе числа неуважительных сразу проверяем
-        document.querySelectorAll('tr[data-class-id] input[name^="unexcused_absent_"]').forEach(function (input) {
-            input.addEventListener('input', function () {
-                const row = this.closest('tr[data-class-id]');
-                if (!row) return;
-                const classId = row.dataset.classId;
-                validateUnexcusedForClass(classId);
-                validateAllAbsentForClass(classId);
+        const rows = document.querySelectorAll('tr[data-class-id]');
+        rows.forEach(function (row) {
+            const classId = row.dataset.classId;
+            const inputs = row.querySelectorAll(
+                'input[name^="reported_present_"], ' +
+                'input[name^="unexcused_absent_"], ' +
+                'input[name^="orvi_"], ' +
+                'input[name^="other_disease_"], ' +
+                'input[name^="family_"]'
+            );
+
+            inputs.forEach(function (input) {
+                input.addEventListener('input', function () {
+                    validateUnexcusedForClass(classId);
+                    validateAllAbsentForClass(classId);
+                    validateCountsForClass(classId);
+                });
             });
         });
 
@@ -546,10 +755,14 @@
             document.querySelectorAll('tr[data-class-id]').forEach(function (row) {
                 const classId = row.dataset.classId;
                 const input = row.querySelector('input[name^="unexcused_absent_"]');
-                if (!input) return; // строка уже сохранена
+                // строка уже сохранена — пропускаем все проверки, её не редактируем
+                if (!input) return;
 
                 validateUnexcusedForClass(classId);
                 validateAllAbsentForClass(classId);
+                if (!validateCountsForClass(classId)) {
+                    hasError = true;
+                }
 
                 const err1 = document.getElementById('error-' + classId);
                 const err2 = document.getElementById('error-all-' + classId);
@@ -562,7 +775,7 @@
 
             if (hasError) {
                 e.preventDefault();
-                alert('Исправьте строки с ошибками: число неуважительных должно совпадать со списком, а все отсутствующие должны включать учеников с неуважительной причиной.');
+                alert('Исправьте строки с ошибками: числа отсутствующих и неуважительных должны совпадать со списками, не быть отрицательными и не превышать количество учеников по списку (а также суммарно не давать больше, чем по списку).');
             }
         });
     })();

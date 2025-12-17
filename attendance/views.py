@@ -24,7 +24,6 @@ class UserLogoutView(LogoutView):
     pass
 
 
-
 @login_required
 def index(request):
     """
@@ -60,12 +59,21 @@ def index(request):
     totals_saved = summaries.aggregate(
         total_present_reported=Sum('present_count_reported'),
         total_unexcused=Sum('unexcused_absent_count'),
+        total_orvi=Sum('orvi_count'),
+        total_other_disease=Sum('other_disease_count'),
+        total_family=Sum('family_reason_count'),
     )
 
     total_students_all_classes = sum(c.student_count for c in classes)
 
     if request.method == 'POST':
         row_count = int(request.POST.get('row_count', 0))
+
+        def parse_int(value):
+            try:
+                return int((value or '').strip() or 0)
+            except (TypeError, ValueError):
+                return 0
 
         for i in range(row_count):
             class_id = request.POST.get(f'class_{i}')
@@ -87,6 +95,11 @@ def index(request):
             reported_present_raw = request.POST.get(f'reported_present_{i}', '').strip()
             unexcused_absent_raw = request.POST.get(f'unexcused_absent_{i}', '').strip()
 
+            # НОВЫЕ ПОЛЯ
+            orvi_raw = request.POST.get(f'orvi_{i}', '').strip()
+            other_disease_raw = request.POST.get(f'other_disease_{i}', '').strip()
+            family_raw = request.POST.get(f'family_{i}', '').strip()
+
             # списки учеников (идут по id класса, а не индексу)
             unexcused_students_raw = request.POST.get(f'absent_students_{class_id}', '').strip()
             all_absent_students_raw = request.POST.get(f'all_absent_students_{class_id}', '').strip()
@@ -94,12 +107,18 @@ def index(request):
             # если вообще ничего не ввели по классу — пропускаем
             if (not reported_present_raw
                     and not unexcused_absent_raw
+                    and not orvi_raw
+                    and not other_disease_raw
+                    and not family_raw
                     and not unexcused_students_raw
                     and not all_absent_students_raw):
                 continue
 
             # парсим количество и списки
-            reported_present = int(reported_present_raw or 0)
+            reported_present = parse_int(reported_present_raw)
+            orvi_count = parse_int(orvi_raw)
+            other_disease_count = parse_int(other_disease_raw)
+            family_reason_count = parse_int(family_raw)
 
             # список неуважительных (id учеников)
             unexcused_ids = set()
@@ -157,6 +176,9 @@ def index(request):
                 present_count_auto=present_auto,
                 present_count_reported=reported_present,
                 unexcused_absent_count=unexcused_absent,
+                orvi_count=orvi_count,
+                other_disease_count=other_disease_count,
+                family_reason_count=family_reason_count,
                 created_by=user,
             )
 
@@ -236,10 +258,17 @@ def statistics(request):
         total_present_auto = sum(r.present_count_auto for r in records)
         total_present_reported = sum(r.present_count_reported for r in records)
         total_unexcused = sum(r.unexcused_absent_count for r in records)
+        total_orvi = sum(r.orvi_count for r in records)
+        total_other_disease = sum(r.other_disease_count for r in records)
+        total_family = sum(r.family_reason_count for r in records)
+
         day_totals[day] = {
             'total_present_auto': total_present_auto,
             'total_present_reported': total_present_reported,
             'total_unexcused': total_unexcused,
+            'total_orvi': total_orvi,
+            'total_other_disease': total_other_disease,
+            'total_family': total_family,
         }
 
     # сводка по классам за месяц
@@ -250,6 +279,9 @@ def statistics(request):
         total_present_auto=Sum('present_count_auto'),
         total_present_reported=Sum('present_count_reported'),
         total_unexcused=Sum('unexcused_absent_count'),
+        total_orvi=Sum('orvi_count'),
+        total_other_disease=Sum('other_disease_count'),
+        total_family=Sum('family_reason_count'),
     ).order_by('class_room__name')
 
     # статистика по ученикам: сколько раз не пришёл в этом месяце

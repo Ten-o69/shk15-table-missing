@@ -70,31 +70,43 @@ class Student(models.Model):
 
 
 class AttendanceSummary(models.Model):
-    """
-    Сводка по посещаемости для одного класса за один день.
-    """
     class_room = models.ForeignKey(
         ClassRoom,
         on_delete=models.CASCADE,
         related_name='attendance_summaries',
         verbose_name='Класс'
     )
-    date = models.DateField(verbose_name='Дата')
-
-    # Столбец 2: количество присутствующих (расчётное, из БД)
-    present_count_auto = models.PositiveIntegerField(
-        default=0,
-        verbose_name='Присутствуют (по списку)'
+    date = models.DateField(
+        verbose_name='Дата'
     )
 
-    # Столбец 3: количество пришедших (ручной ввод)
+    # По списку (кол-во учеников в классе на эту дату)
+    present_count_auto = models.PositiveIntegerField(
+        verbose_name='По списку'
+    )
+    # Пришло по факту
     present_count_reported = models.PositiveIntegerField(
+        default=0,
         verbose_name='Пришло по факту'
     )
-
-    # Столбец 4: отсутствуют по неуважительной причине (ручной ввод)
+    # Неуважительные
     unexcused_absent_count = models.PositiveIntegerField(
-        verbose_name='Неуважительные причины'
+        default=0,
+        verbose_name='Неуважительные отсутствия'
+    )
+
+    # НОВЫЕ ПОЛЯ
+    orvi_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name='ОРВИ'
+    )
+    other_disease_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Другие заболевания'
+    )
+    family_reason_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name='По семейным обстоятельствам'
     )
 
     created_by = models.ForeignKey(
@@ -102,11 +114,8 @@ class AttendanceSummary(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name='Кто ввёл данные'
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name='Создано'
+        related_name='created_attendance_summaries',
+        verbose_name='Кто внёс данные'
     )
 
     class Meta:
@@ -116,7 +125,7 @@ class AttendanceSummary(models.Model):
         ordering = ['-date', 'class_room__name']
 
     def __str__(self):
-        return f'{self.class_room} / {self.date}'
+        return f'{self.class_room} — {self.date}'
 
 
 class AbsentStudent(models.Model):

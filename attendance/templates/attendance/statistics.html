@@ -125,6 +125,24 @@
                                                 {{ totals.total_unexcused|default:"0" }}
                                             </span>
                                         </span>
+                                        <span class="daily-summary-item">
+                                            ОРВИ:
+                                            <span class="text-bold">
+                                                {{ totals.total_orvi|default:"0" }}
+                                            </span>
+                                        </span>
+                                        <span class="daily-summary-item">
+                                            Другие заболевания:
+                                            <span class="text-bold">
+                                                {{ totals.total_other_disease|default:"0" }}
+                                            </span>
+                                        </span>
+                                        <span class="daily-summary-item">
+                                            По семейным обстоятельствам:
+                                            <span class="text-bold">
+                                                {{ totals.total_family|default:"0" }}
+                                            </span>
+                                        </span>
                                     </div>
                                 {% endwith %}
                             </div>
@@ -144,6 +162,9 @@
                                         <th>Класс</th>
                                         <th>Пришло по факту</th>
                                         <th>Неуважительные</th>
+                                        <th>ОРВИ</th>
+                                        <th>Другие заболевания</th>
+                                        <th>По семейным обстоятельствам</th>
                                         <th>Отсутствующие ученики</th>
                                     </tr>
                                     </thead>
@@ -155,6 +176,9 @@
                                             <td>{{ s.class_room.name }}</td>
                                             <td>{{ s.present_count_reported }}</td>
                                             <td>{{ s.unexcused_absent_count }}</td>
+                                            <td>{{ s.orvi_count }}</td>
+                                            <td>{{ s.other_disease_count }}</td>
+                                            <td>{{ s.family_reason_count }}</td>
                                             <td>
                                                 {% if s.absent_students.all %}
                                                     <ul class="pill-list">
@@ -200,6 +224,9 @@
                             <th>Класс</th>
                             <th>Всего пришедших</th>
                             <th>Всего неуважительных</th>
+                            <th>ОРВИ</th>
+                            <th>Другие заболевания</th>
+                            <th>По семейным обстоятельствам</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -210,6 +237,9 @@
                                 <td>{{ row.class_room__name }}</td>
                                 <td>{{ row.total_present_reported }}</td>
                                 <td>{{ row.total_unexcused }}</td>
+                                <td>{{ row.total_orvi|default:"0" }}</td>
+                                <td>{{ row.total_other_disease|default:"0" }}</td>
+                                <td>{{ row.total_family|default:"0" }}</td>
                             </tr>
                         {% endfor %}
                         </tbody>
@@ -301,7 +331,7 @@
                 const id = this.getAttribute('data-target-id');
                 const expanded = this.dataset.expanded === 'true';
                 setCollapsed(id, expanded); // если было раскрыто -> свернуть, и наоборот
-                // внимание: логика в setCollapsed уже сама выставляет текст и dataset
+                // текст и dataset выставляются внутри setCollapsed
             });
         });
 
