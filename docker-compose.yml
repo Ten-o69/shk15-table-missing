@@ -15,7 +15,12 @@ services:
       - "5432"
 
   web:
-    build: .
+    build:
+      context: .
+      args:
+        http_proxy: "http://10.0.61.52:3128"
+        https_proxy: "http://10.0.61.52:3128"
+        no_proxy: "localhost,127.0.0.1,db"
     image: tenp30/shk15-table-missing-web:latest
     restart: always
     command: /entrypoint.sh
