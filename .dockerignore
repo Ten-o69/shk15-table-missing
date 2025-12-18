@@ -1,0 +1,11 @@
+.venv
+__pycache__
+*.pyc
+.git
+.gitignore
+.idea
+.vscode
+*.log
+staticfiles
+media
+static

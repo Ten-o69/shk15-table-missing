@@ -2,15 +2,16 @@ from pathlib import Path
 import os
 
 from dotenv import load_dotenv
+from .utils import get_env_list
 
 load_dotenv(".env")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-)s0e--#8kco#=linj&ze7z1%x(@@x=i1rw415(z0=0@e-rffsb'
-DEBUG = os.environ.get('DEBUG', False)
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+DEBUG = os.environ.get('DJANGO_DEBUG', False)
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = get_env_list('DJANGO_ALLOWED_HOSTS')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -54,7 +55,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'school_attendance.wsgi.application'
 
-# PostgreSQL
+# PostgresSQL
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -83,6 +84,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'static'
 
 STATICFILES_DIRS = [
     BASE_DIR / 'attendance' / 'static',
