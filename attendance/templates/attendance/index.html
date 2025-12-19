@@ -80,13 +80,13 @@
                         <tr>
                             <th>Класс</th>
                             <th>По списку<br><span class="th-sub">(кол-во учеников в классе)</span></th>
-                            <th>Пришло по факту<br><span class="th-sub">(ввести)</span></th>
                             <th>Отсутствуют по неуважительной причине<br><span class="th-sub">(ввести количество)</span></th>
                             <th>Ученики с неуважительной причиной<br><span class="th-sub">(выбор из списка)</span></th>
                             <th>ОРВИ<br><span class="th-sub">(ввести количество)</span></th>
                             <th>Другие заболевания<br><span class="th-sub">(ввести количество)</span></th>
                             <th>По семейным обстоятельствам<br><span class="th-sub">(ввести количество)</span></th>
                             <th>Все отсутствующие ученики<br><span class="th-sub">(уважительные + неуважительные)</span></th>
+                            <th>Пришло по факту<br><span class="th-sub">(рассчитывается автоматически)</span></th>
                         </tr>
                         </thead>
                         <tbody>
@@ -115,24 +115,13 @@
 
                                 <td>
                                     {% if summary %}
-                                        <span>{{ summary.present_count_reported }}</span>
-                                    {% else %}
-                                        <input type="number"
-                                               name="reported_present_{{ forloop.counter0 }}"
-                                               class="input"
-                                               min="0"
-                                               placeholder="Введите количество">
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {% if summary %}
                                         <span>{{ summary.unexcused_absent_count }}</span>
                                     {% else %}
                                         <input type="number"
                                                name="unexcused_absent_{{ forloop.counter0 }}"
                                                class="input"
                                                min="0"
+                                               required
                                                placeholder="Введите количество">
                                     {% endif %}
                                 </td>
@@ -179,6 +168,7 @@
                                                name="orvi_{{ forloop.counter0 }}"
                                                class="input"
                                                min="0"
+                                               required
                                                placeholder="ОРВИ">
                                     {% endif %}
                                 </td>
@@ -192,6 +182,7 @@
                                                name="other_disease_{{ forloop.counter0 }}"
                                                class="input"
                                                min="0"
+                                               required
                                                placeholder="Другие заболевания">
                                     {% endif %}
                                 </td>
@@ -205,6 +196,7 @@
                                                name="family_{{ forloop.counter0 }}"
                                                class="input"
                                                min="0"
+                                               required
                                                placeholder="По семейным">
                                     {% endif %}
                                 </td>
@@ -237,6 +229,20 @@
                                             </div>
                                             <div class="field-error" id="error-all-{{ class.id }}"></div>
                                         </div>
+                                    {% endif %}
+                                </td>
+
+                                {# Перенесённое поле: Пришло по факту (в конце) #}
+                                <td>
+                                    {% if summary %}
+                                        <span>{{ summary.present_count_reported }}</span>
+                                    {% else %}
+                                        <input type="number"
+                                               name="reported_present_{{ forloop.counter0 }}"
+                                               class="input"
+                                               min="0"
+                                               placeholder="Считается автоматически"
+                                               readonly>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -329,11 +335,24 @@
         const otherInput = row.querySelector('input[name^="other_disease_"]');
         const familyInput = row.querySelector('input[name^="family_"]');
 
-        const present = presentInput ? parseIntSafe(presentInput.value) : 0;
         const unexcused = unexcusedInput ? parseIntSafe(unexcusedInput.value) : 0;
         const orvi = orviInput ? parseIntSafe(orviInput.value) : 0;
         const other = otherInput ? parseIntSafe(otherInput.value) : 0;
         const family = familyInput ? parseIntSafe(familyInput.value) : 0;
+
+        const totalAbsent = unexcused + orvi + other + family;
+
+        // считаем пришедших как "по списку − отсутствующие"
+        let present = 0;
+        if (presentInput) {
+            if (totalAbsent <= totalStudents) {
+                present = totalStudents - totalAbsent;
+            } else {
+                // если отсутствующих больше, чем по списку, не даём уйти в минус
+                present = 0;
+            }
+            presentInput.value = present;
+        }
 
         let ok = true;
 
@@ -362,13 +381,15 @@
         }
 
         // каждое поле отдельно не может быть <0 или > "по списку"
-        checkField(presentInput, present);
         checkField(unexcusedInput, unexcused);
         checkField(orviInput, orvi);
         checkField(otherInput, other);
         checkField(familyInput, family);
 
-        const totalAbsent = unexcused + orvi + other + family;
+        // и пришедшие тоже не должны выйти за границы
+        if (presentInput) {
+            checkField(presentInput, present);
+        }
 
         // суммарно пришедшие + все отсутствующие не могут превышать "по списку"
         if (present + totalAbsent > totalStudents) {
