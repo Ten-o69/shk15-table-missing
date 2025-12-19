@@ -29,8 +29,8 @@ def index(request):
     """
     Главная страница:
     - показывает таблицу только по тем классам, которые закреплены за пользователем (ClassRoom.staff)
-    - Завуч имеет доступ к странице статистики, учитель — нет (это контролируется группами)
-    - данные всегда за текущий день (по Москве)
+    - Завуч/Учитель определяются по группам
+    - данные всегда за текущий день (с учётом test_date в DEBUG)
     """
     if request.GET.get('test_date') and DEBUG:
         try:
@@ -75,6 +75,20 @@ def index(request):
             except (TypeError, ValueError):
                 return 0
 
+        def parse_ids(raw):
+            ids = set()
+            if not raw:
+                return ids
+            for part in raw.split(','):
+                part = part.strip()
+                if not part:
+                    continue
+                try:
+                    ids.add(int(part))
+                except ValueError:
+                    continue
+            return ids
+
         for i in range(row_count):
             class_id = request.POST.get(f'class_{i}')
             if not class_id:
@@ -85,68 +99,63 @@ def index(request):
             except ClassRoom.DoesNotExist:
                 continue
 
-            # ввод только один раз в день
+            # уже есть запись за сегодня — не даём перезаписать
             if AttendanceSummary.objects.filter(
                 class_room=class_room,
                 date=today
             ).exists():
                 continue
 
+            # числовые поля
             reported_present_raw = request.POST.get(f'reported_present_{i}', '').strip()
             unexcused_absent_raw = request.POST.get(f'unexcused_absent_{i}', '').strip()
-
-            # НОВЫЕ ПОЛЯ
             orvi_raw = request.POST.get(f'orvi_{i}', '').strip()
             other_disease_raw = request.POST.get(f'other_disease_{i}', '').strip()
             family_raw = request.POST.get(f'family_{i}', '').strip()
 
-            # списки учеников (идут по id класса, а не индексу)
+            # скрытые поля со списками учеников (по id класса)
             unexcused_students_raw = request.POST.get(f'absent_students_{class_id}', '').strip()
             all_absent_students_raw = request.POST.get(f'all_absent_students_{class_id}', '').strip()
+            orvi_students_raw = request.POST.get(f'orvi_students_{class_id}', '').strip()
+            other_students_raw = request.POST.get(f'other_students_{class_id}', '').strip()
+            family_students_raw = request.POST.get(f'family_students_{class_id}', '').strip()
 
-            # если вообще ничего не ввели по классу — пропускаем
-            if (not reported_present_raw
-                    and not unexcused_absent_raw
-                    and not orvi_raw
-                    and not other_disease_raw
-                    and not family_raw
-                    and not unexcused_students_raw
-                    and not all_absent_students_raw):
+            # если по классу вообще ничего не введено — пропускаем
+            if (
+                not reported_present_raw
+                and not unexcused_absent_raw
+                and not orvi_raw
+                and not other_disease_raw
+                and not family_raw
+                and not unexcused_students_raw
+                and not all_absent_students_raw
+                and not orvi_students_raw
+                and not other_students_raw
+                and not family_students_raw
+            ):
                 continue
 
-            # парсим количество и списки
+            # числа
             reported_present = parse_int(reported_present_raw)
             orvi_count = parse_int(orvi_raw)
             other_disease_count = parse_int(other_disease_raw)
             family_reason_count = parse_int(family_raw)
 
-            # список неуважительных (id учеников)
-            unexcused_ids = set()
-            if unexcused_students_raw:
-                for part in unexcused_students_raw.split(','):
-                    part = part.strip()
-                    if part:
-                        try:
-                            unexcused_ids.add(int(part))
-                        except ValueError:
-                            pass
+            # списки id по видам причин
+            unexcused_ids = parse_ids(unexcused_students_raw)
+            orvi_ids = parse_ids(orvi_students_raw)
+            other_ids = parse_ids(other_students_raw)
+            family_ids = parse_ids(family_students_raw)
 
-            # список всех отсутствующих (id учеников)
-            all_absent_ids = set()
-            if all_absent_students_raw:
-                for part in all_absent_students_raw.split(','):
-                    part = part.strip()
-                    if part:
-                        try:
-                            all_absent_ids.add(int(part))
-                        except ValueError:
-                            pass
+            all_absent_ids = parse_ids(all_absent_students_raw)
 
-            # число неуважительных по факту считаем по списку, а не по числу из инпута
+            # реальное число неуважительных = длина списка
             unexcused_absent = len(unexcused_ids)
 
-            # СЕРВЕРНАЯ валидация (на случай, если фронт не сработал)
-            # 1) если есть неуважительные, то их количество должно совпадать с числом из поля
+            # --- СЕРВЕРНАЯ ВАЛИДАЦИЯ ---
+
+            # 1) числа по каждому виду должны совпадать с кол-вом фамилий
+
             if unexcused_absent_raw:
                 try:
                     typed_unexcused = int(unexcused_absent_raw)
@@ -159,22 +168,89 @@ def index(request):
                     )
                     return redirect('index')
 
-            # 2) если есть неуважительные, то все они должны входить в список "все отсутствующие"
-            if unexcused_ids:
-                if not all_absent_ids or not unexcused_ids.issubset(all_absent_ids):
+            if orvi_raw:
+                try:
+                    typed_orvi = int(orvi_raw)
+                except ValueError:
+                    typed_orvi = None
+                if typed_orvi is None or typed_orvi != len(orvi_ids):
                     messages.error(
                         request,
-                        f'Класс {class_room.name}: список всех отсутствующих должен включать всех с неуважительной причиной.'
+                        f'Класс {class_room.name}: число ОРВИ не совпадает со списком учеников.'
                     )
                     return redirect('index')
 
+            if other_disease_raw:
+                try:
+                    typed_other = int(other_disease_raw)
+                except ValueError:
+                    typed_other = None
+                if typed_other is None or typed_other != len(other_ids):
+                    messages.error(
+                        request,
+                        f'Класс {class_room.name}: число по другим заболеваниям не совпадает со списком учеников.'
+                    )
+                    return redirect('index')
+
+            if family_raw:
+                try:
+                    typed_family = int(family_raw)
+                except ValueError:
+                    typed_family = None
+                if typed_family is None or typed_family != len(family_ids):
+                    messages.error(
+                        request,
+                        f'Класс {class_room.name}: число по семейным обстоятельствам не совпадает со списком учеников.'
+                    )
+                    return redirect('index')
+
+            # 2) "все отсутствующие" должны содержать всех из конкретных списков
+            reason_ids_union = unexcused_ids | orvi_ids | other_ids | family_ids
+
+            if reason_ids_union:
+                if not all_absent_ids:
+                    # если пользователь вообще не трогал "все отсутствующие" —
+                    # просто проставим туда union
+                    all_absent_ids = set(reason_ids_union)
+                elif not reason_ids_union.issubset(all_absent_ids):
+                    messages.error(
+                        request,
+                        f'Класс {class_room.name}: список всех отсутствующих должен включать всех учеников из частных списков причин.'
+                    )
+                    return redirect('index')
+            # если reason_ids_union пуст, но all_absent_ids есть — считаем их неуважительными
+            if not reason_ids_union and all_absent_ids:
+                unexcused_ids = set(all_absent_ids)
+                unexcused_absent = len(unexcused_ids)
+
             present_auto = class_room.student_count
 
+            total_absent_count = (
+                unexcused_absent +
+                orvi_count +
+                other_disease_count +
+                family_reason_count
+            )
+
+            if present_auto and total_absent_count > present_auto:
+                messages.error(
+                    request,
+                    f'Класс {class_room.name}: суммарное число отсутствующих больше, чем учеников по списку.'
+                )
+                return redirect('index')
+
+            if present_auto:
+                present_reported = max(0, present_auto - total_absent_count)
+            else:
+                # fallback, если не задано число по списку
+                present_reported = reported_present
+
+            # создаём сводку
             summary = AttendanceSummary.objects.create(
                 class_room=class_room,
                 date=today,
                 present_count_auto=present_auto,
-                present_count_reported=reported_present,
+                present_count_reported=present_reported,
                 unexcused_absent_count=unexcused_absent,
                 orvi_count=orvi_count,
                 other_disease_count=other_disease_count,
@@ -182,23 +258,29 @@ def index(request):
                 created_by=user,
             )
 
-            # создаём записи об отсутствующих учениках
-            # если all_absent_ids пустой, но есть неуважительные — считаем,
-            # что отсутствуют только они
-            if not all_absent_ids and unexcused_ids:
-                all_absent_ids = set(unexcused_ids)
+            # если по какой-то причине all_absent_ids всё ещё пуст, но есть конкретные причины —
+            # берём union
+            if not all_absent_ids:
+                all_absent_ids = reason_ids_union
 
+            # создаём записи AbsentStudent с нормальными причинами
             for sid in all_absent_ids:
                 try:
                     student = Student.objects.get(id=sid, class_room=class_room)
                 except Student.DoesNotExist:
                     continue
 
-                reason = (
-                    AbsentStudent.Reason.UNEXCUSED
-                    if sid in unexcused_ids
-                    else AbsentStudent.Reason.EXCUSED
-                )
+                if sid in unexcused_ids:
+                    reason = AbsentStudent.Reason.UNEXCUSED
+                elif sid in orvi_ids:
+                    reason = AbsentStudent.Reason.ORVI
+                elif sid in other_ids:
+                    reason = AbsentStudent.Reason.OTHER_DISEASE
+                elif sid in family_ids:
+                    reason = AbsentStudent.Reason.FAMILY
+                else:
+                    # кто-то в "все отсутствующие", но без конкретной причины — игнорируем
+                    continue
 
                 AbsentStudent.objects.create(
                     attendance=summary,
@@ -232,11 +314,10 @@ def statistics(request):
     Страница статистики (доступна только завучу):
     - таблицы по дням
     - сводная статистика за месяц по классам
-    - статистика по ученикам за месяц
+    - статистика по ученикам за месяц (по неуважительным)
     """
     today = timezone.localdate()
 
-    # можно передавать month/year через GET, но по умолчанию текущий месяц
     month = int(request.GET.get('month', today.month))
     year = int(request.GET.get('year', today.year))
 
@@ -252,7 +333,7 @@ def statistics(request):
 
     ordered_days = sorted(days_map.items(), key=lambda x: x[0], reverse=True)
 
-    # итоги по каждому дню (как на главной, только по дню)
+    # итоги по каждому дню
     day_totals = {}
     for day, records in days_map.items():
         total_present_auto = sum(r.present_count_auto for r in records)
@@ -284,11 +365,11 @@ def statistics(request):
         total_family=Sum('family_reason_count'),
     ).order_by('class_room__name')
 
-    # статистика по ученикам: сколько раз не пришёл в этом месяце
+    # статистика по ученикам: сколько раз не пришёл (НЕУВАЖИТЕЛЬНЫЕ) в этом месяце
     absences_qs = AbsentStudent.objects.filter(
         attendance__date__year=year,
         attendance__date__month=month,
-        reason=AbsentStudent.Reason.UNEXCUSED,  # считаем только неуважительные
+        reason=AbsentStudent.Reason.UNEXCUSED,
     ).select_related('student', 'attendance__class_room')
 
     per_student = absences_qs.values(

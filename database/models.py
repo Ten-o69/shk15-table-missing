@@ -22,7 +22,7 @@ class ClassRoom(models.Model):
         verbose_name='Количество учеников в классе'
     )
 
-    # НОВОЕ ПОЛЕ
+    # Закреплённые сотрудники (кто видит этот класс на главной)
     staff = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         blank=True,
@@ -95,7 +95,7 @@ class AttendanceSummary(models.Model):
         verbose_name='Неуважительные отсутствия'
     )
 
-    # НОВЫЕ ПОЛЯ
+    # Отдельные виды уважительных причин
     orvi_count = models.PositiveIntegerField(
         default=0,
         verbose_name='ОРВИ'
@@ -131,7 +131,9 @@ class AttendanceSummary(models.Model):
 class AbsentStudent(models.Model):
     class Reason(models.TextChoices):
         UNEXCUSED = 'unexcused', 'Неуважительная причина'
-        EXCUSED = 'excused', 'Уважительная причина'
+        ORVI = 'orvi', 'ОРВИ'
+        OTHER_DISEASE = 'other_disease', 'Другое заболевание'
+        FAMILY = 'family', 'По семейным обстоятельствам'
 
     attendance = models.ForeignKey(
         'AttendanceSummary',
