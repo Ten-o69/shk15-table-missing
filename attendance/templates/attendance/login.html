@@ -25,13 +25,23 @@
 
         <div class="form-group">
             <label for="id_password">Пароль</label>
-            <input type="password"
-                   name="password"
-                   required
-                   id="id_password"
-                   class="input input-full">
-        </div>
 
+            <div class="password-field">
+                <input type="password"
+                       name="password"
+                       required
+                       id="id_password"
+                       class="input input-full input-with-icon">
+
+                <button type="button"
+                        class="password-toggle"
+                        aria-label="Показать пароль"
+                        aria-pressed="false"
+                        data-target="id_password">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </div>
+        </div>
         {% if form.errors %}
             <div class="alert alert-danger">
                 Неверное имя пользователя или пароль.
@@ -43,4 +53,24 @@
         </div>
     </form>
 </div>
+    <script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.password-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.target);
+      if (!input) return;
+
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+
+      const icon = btn.querySelector('i');
+      icon.classList.toggle('bi-eye', !show);
+      icon.classList.toggle('bi-eye-slash', show);
+
+      btn.setAttribute('aria-pressed', String(show));
+      btn.setAttribute('aria-label', show ? 'Скрыть пароль' : 'Показать пароль');
+    });
+  });
+});
+</script>
 {% endblock %}

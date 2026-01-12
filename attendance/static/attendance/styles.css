@@ -542,3 +542,31 @@ a:hover {
 .daily-summary-item .text-bold {
     color: var(--text);
 }
+
+.password-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-icon {
+    padding-right: 44px;
+}
+
+.password-toggle {
+    color: whitesmoke;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    padding: 6px;
+    cursor: pointer;
+    opacity: 0.75;
+    font-size: 18px; /* размер иконки */
+    line-height: 1;
+}
+
+.password-toggle:hover { opacity: 1; }
+.password-toggle:focus { outline: none; }
