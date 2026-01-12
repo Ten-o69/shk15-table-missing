@@ -22,6 +22,10 @@
                             Статистика
                         </a>
                     {% endif %}
+                    <a href="{% url 'manage_students' %}"
+                       class="nav-link{% if '/students' in request.path %} nav-link-active{% endif %}">
+                        Управление учениками
+                    </a>
                 </nav>
             {% endif %}
         </div>

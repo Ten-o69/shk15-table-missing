@@ -4,7 +4,7 @@ from datetime import datetime
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.views import LoginView, LogoutView
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q
 from django.shortcuts import render, redirect
 from django.utils import timezone
 
@@ -218,6 +218,7 @@ def index(request):
                         f'Класс {class_room.name}: список всех отсутствующих должен включать всех учеников из частных списков причин.'
                     )
                     return redirect('index')
+
             # если reason_ids_union пуст, но all_absent_ids есть — считаем их неуважительными
             if not reason_ids_union and all_absent_ids:
                 unexcused_ids = set(all_absent_ids)
@@ -296,6 +297,46 @@ def index(request):
         for c in classes
     }
 
+    # === ЛЬГОТНИКИ: по классам + "сейчас в школе" (по отсутствующим за сегодня) ===
+    privileged_qs = Student.objects.filter(
+        class_room__in=classes,
+        is_active=True,
+        is_privileged=True
+    ).select_related('class_room').order_by('class_room__name', 'full_name')
+
+    priv_students_by_class = defaultdict(list)
+    privileged_total_by_class = defaultdict(int)
+
+    for s in privileged_qs:
+        priv_students_by_class[s.class_room_id].append(s)
+        privileged_total_by_class[s.class_room_id] += 1
+
+    absent_priv_qs = AbsentStudent.objects.filter(
+        attendance__date=today,
+        attendance__class_room__in=classes,
+        student__is_active=True,
+        student__is_privileged=True
+    ).values_list('attendance__class_room_id', 'student_id')
+
+    absent_priv_ids_by_class = defaultdict(set)
+    for class_id, student_id in absent_priv_qs:
+        absent_priv_ids_by_class[class_id].add(student_id)
+
+    privileged_present_by_class = {}
+    privileged_present_count_by_class = {}
+
+    for c in classes:
+        all_priv = priv_students_by_class.get(c.id, [])
+        absent_ids = absent_priv_ids_by_class.get(c.id, set())
+        present_names = [s.full_name for s in all_priv if s.id not in absent_ids]
+        present_names.sort(key=lambda x: x.lower())
+
+        privileged_present_by_class[c.id] = present_names
+        privileged_present_count_by_class[c.id] = len(present_names)
+
+    total_privileged_all = sum(privileged_total_by_class.get(c.id, 0) for c in classes)
+    total_privileged_present_all = sum(privileged_present_count_by_class.get(c.id, 0) for c in classes)
+
     context = {
         'today': today,
         'classes': classes,
@@ -303,6 +344,17 @@ def index(request):
         'totals_saved': totals_saved,
         'total_students_all_classes': total_students_all_classes,
         'students_by_class': students_by_class,
+
+        # ✅ льготники
+        'privileged_total_by_class': dict(privileged_total_by_class),
+        'privileged_present_by_class': privileged_present_by_class,
+        'privileged_present_count_by_class': dict(privileged_present_count_by_class),
+        'total_privileged_all': total_privileged_all,
+        'total_privileged_present_all': total_privileged_present_all,
+
+        # ✅ чтобы base.html корректно показывал бейджи/меню
+        'is_deputy': user_is_deputy,
+        'is_teacher': user_is_teacher,
     }
     return render(request, 'attendance/index.html', context)
 
@@ -389,3 +441,118 @@ def statistics(request):
         'year': year,
     }
     return render(request, 'attendance/statistics.html', context)
+
+
+@login_required
+def manage_students(request):
+    """
+    Управление учениками:
+    - доступно всем авторизованным
+    - показывает учеников по классам, доступным пользователю
+    - льготники + мягкое удаление (is_active=False)
+    - поиск/фильтр/сортировка
+    """
+    user = request.user
+    user_is_deputy = user.groups.filter(name='Завуч').exists()
+    user_is_teacher = user.groups.filter(name='Учитель').exists()
+
+    # Какие классы доступны пользователю:
+    # - завучам/суперпользователям: все классы
+    # - остальным: только закреплённые
+    if user_is_deputy or user.is_superuser:
+        allowed_classes = ClassRoom.objects.all().order_by('name')
+    else:
+        allowed_classes = ClassRoom.objects.filter(staff=user).order_by('name')
+
+    # Фильтры
+    q = (request.GET.get('q') or '').strip()
+    class_id = (request.GET.get('class_id') or '').strip()
+    show_inactive = (request.GET.get('show_inactive') or '').strip() == '1'
+    sort = (request.GET.get('sort') or 'class_asc').strip()
+
+    students = Student.objects.select_related('class_room').filter(class_room__in=allowed_classes)
+
+    if not show_inactive:
+        students = students.filter(is_active=True)
+
+    if class_id.isdigit():
+        students = students.filter(class_room_id=int(class_id))
+
+    if q:
+        students = students.filter(
+            Q(full_name__icontains=q) |
+            Q(class_room__name__icontains=q)
+        )
+
+    sort_map = {
+        'class_asc':  ('class_room__name', 'full_name'),
+        'class_desc': ('-class_room__name', 'full_name'),
+        'name_asc':   ('full_name', 'class_room__name'),
+        'name_desc':  ('-full_name', 'class_room__name'),
+    }
+    order_fields = sort_map.get(sort, sort_map['class_asc'])
+    students = students.order_by(*order_fields)
+
+    # POST-операции
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+
+        # для bulk действий
+        ids = request.POST.getlist('student_ids')
+        ids = [int(x) for x in ids if str(x).isdigit()]
+
+        # для inline переключателя
+        one_id = request.POST.get('student_id')
+        one_id = int(one_id) if (one_id and str(one_id).isdigit()) else None
+
+        # без доступа к чужим классам
+        def qs_allowed(qs):
+            return qs.filter(class_room__in=allowed_classes)
+
+        if action == 'toggle_privileged' and one_id:
+            try:
+                s = qs_allowed(Student.objects).get(id=one_id)
+            except Student.DoesNotExist:
+                messages.error(request, 'Ученик не найден или нет доступа.')
+                return redirect(request.get_full_path())
+
+            s.is_privileged = bool(request.POST.get('is_privileged'))
+            s.save(update_fields=['is_privileged'])
+            messages.success(request, f'Обновлено: {s.full_name}')
+            return redirect(request.get_full_path())
+
+        if action in ('priv_on', 'priv_off', 'delete', 'restore') and ids:
+            qs = qs_allowed(Student.objects.filter(id__in=ids))
+
+            if action == 'priv_on':
+                qs.update(is_privileged=True)
+                messages.success(request, f'Отмечено льготниками: {qs.count()}')
+            elif action == 'priv_off':
+                qs.update(is_privileged=False)
+                messages.success(request, f'Льгота снята: {qs.count()}')
+            elif action == 'delete':
+                # мягкое удаление
+                qs.update(is_active=False)
+                messages.success(request, f'Удалено (деактивировано): {qs.count()}')
+            elif action == 'restore':
+                qs.update(is_active=True)
+                messages.success(request, f'Восстановлено: {qs.count()}')
+
+            return redirect(request.get_full_path())
+
+        messages.error(request, 'Не выбрано действие или ученики.')
+        return redirect(request.get_full_path())
+
+    context = {
+        'classes': allowed_classes,
+        'students': students,
+        'q': q,
+        'class_id': class_id,
+        'show_inactive': show_inactive,
+        'sort': sort,
+
+        # чтобы base.html корректно показывал бейджи/меню
+        'is_deputy': user_is_deputy,
+        'is_teacher': user_is_teacher,
+    }
+    return render(request, 'attendance/manage_students.html', context)

@@ -1,0 +1,514 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Управление учениками{% endblock %}
+
+{% block content %}
+<style>
+  .page-wide { width: 100vw; margin-left: calc(50% - 50vw); }
+  @media (max-width: 768px) { .page-wide { border-radius: 0; } }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .filters label { display: flex; flex-direction: column; gap: 6px; }
+  .filters .inline { flex-direction: row; align-items: center; gap: 8px; }
+
+  .actions-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+  }
+
+  .actions-left, .actions-right {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .muted-small { font-size: 0.92em; opacity: 0.85; }
+
+  .counter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,0,0,0.10);
+    background: rgba(0,0,0,0.03);
+  }
+
+  /* ===== Cards ===== */
+  .student-grid {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 14px;
+  }
+
+  .student-card {
+    position: relative;
+    border-radius: 16px;
+
+    /* ВЫДЕЛЕННЫЕ КРАЯ */
+    border: 1px solid rgba(0,0,0,0.16);
+    outline: 1px solid rgba(255,255,255,0.35);
+    outline-offset: -2px;
+
+    /* чуть более контрастный фон */
+    background: rgba(0,0,0,0.025);
+
+    /* отделяем карточку от фона */
+    box-shadow:
+      0 1px 0 rgba(0,0,0,0.05),
+      0 10px 24px rgba(0,0,0,0.05);
+
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    /* чтобы информация не превращалась в кашу */
+    overflow: hidden;
+  }
+
+  /* Акцентная "полоска" слева — визуальный якорь */
+  .student-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: rgba(0,0,0,0.20);
+  }
+
+  .student-card:hover {
+    border-color: rgba(0,0,0,0.22);
+    box-shadow:
+      0 1px 0 rgba(0,0,0,0.06),
+      0 14px 30px rgba(0,0,0,0.07);
+  }
+
+  .student-card.is-inactive {
+    opacity: 0.78;
+  }
+
+  /* Внутренние секции карточки — чтобы контент был "по полочкам" */
+  .student-card-head,
+  .student-card-foot {
+    background: rgba(255,255,255,0.35);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 12px;
+    padding: 10px;
+  }
+
+  .student-card-foot {
+    background: rgba(255,255,255,0.28);
+  }
+
+  .student-card-head {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.03);
+    border: 1px solid rgba(0,0,0,0.10);
+    user-select: none;
+    white-space: nowrap;
+  }
+  .pick input { transform: translateY(1px); }
+
+  .head-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .student-name {
+    font-weight: 750;
+    line-height: 1.25;
+    word-break: break-word;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+
+    /* отдельный блок для имени */
+    background: rgba(0,0,0,0.02);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 12px;
+    padding: 10px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.88em;
+    border: 1px solid rgba(0,0,0,0.10);
+    background: rgba(0,0,0,0.03);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .badge-success { background: rgba(34,197,94,0.14); border-color: rgba(34,197,94,0.28); }
+  .badge-danger  { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.28); }
+  .badge-warn    { background: rgba(245,158,11,0.16); border-color: rgba(245,158,11,0.30); }
+
+  .student-card-foot {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .toggle-priv {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  @media (max-width: 520px) {
+    .student-grid { grid-template-columns: 1fr; }
+    .student-card-head { flex-direction: column; align-items: stretch; }
+    .head-badges { justify-content: flex-start; }
+    .student-card-foot { flex-direction: column; align-items: stretch; }
+    .btn-row { justify-content: flex-start; }
+  }
+</style>
+
+<div class="card page-wide">
+  <div class="card-header">
+    <h1>Управление учениками</h1>
+    <p class="card-subtitle">
+      Отмечайте льготников и удаляйте учеников. Удаление — мягкое (ученик становится неактивным, история посещаемости сохраняется).
+    </p>
+  </div>
+
+  <div class="card-section">
+    <!-- ФИЛЬТРЫ (GET) -->
+    <div class="toolbar">
+      <form method="get" class="filters">
+        <label>
+          Поиск (ФИО / класс):
+          <input type="text" name="q" value="{{ q }}" class="input" placeholder="Например: Иванов или 3Б">
+        </label>
+
+        <label>
+          Класс:
+          <select name="class_id" class="input">
+            <option value="">Все</option>
+            {% for c in classes %}
+              <option value="{{ c.id }}" {% if class_id == c.id|stringformat:"s" %}selected{% endif %}>
+                {{ c.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          Сортировка:
+          <select name="sort" class="input">
+            <option value="class_asc"  {% if sort == 'class_asc' %}selected{% endif %}>Класс ↑, ФИО ↑</option>
+            <option value="class_desc" {% if sort == 'class_desc' %}selected{% endif %}>Класс ↓, ФИО ↑</option>
+            <option value="name_asc"   {% if sort == 'name_asc' %}selected{% endif %}>ФИО ↑</option>
+            <option value="name_desc"  {% if sort == 'name_desc' %}selected{% endif %}>ФИО ↓</option>
+          </select>
+        </label>
+
+        <label class="inline">
+          <input type="checkbox" name="show_inactive" value="1" {% if show_inactive %}checked{% endif %}>
+          Показать удалённых
+        </label>
+
+        <button class="btn btn-primary" type="submit">
+          <i class="bi bi-funnel"></i> Применить
+        </button>
+      </form>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        <label style="display:flex; flex-direction:column; gap:6px;">
+          Быстрый фильтр на странице:
+          <input id="client-search" type="text" class="input" placeholder="Фильтр без перезагрузки">
+        </label>
+
+        <span class="counter-pill muted-small" title="Количество карточек, видимых на странице">
+          <i class="bi bi-people"></i>
+          Видимых: <span id="visible-count">0</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- BULK (POST) -->
+    <form method="post" id="bulk-form">
+      {% csrf_token %}
+
+      <div class="actions-bar">
+        <div class="actions-left">
+          <button type="button" class="btn btn-outline" id="check-all">
+            <i class="bi bi-check2-square"></i> Выбрать всё
+          </button>
+          <button type="button" class="btn btn-outline" id="uncheck-all">
+            <i class="bi bi-square"></i> Снять выбор
+          </button>
+
+          <span class="counter-pill muted-small">
+            <i class="bi bi-check-circle"></i>
+            Выбрано: <span id="selected-count">0</span>
+          </span>
+        </div>
+
+        <div class="actions-right">
+          <select name="action" class="input" required>
+            <option value="">— Действие —</option>
+            <option value="priv_on">Отметить льготниками</option>
+            <option value="priv_off">Снять льготу</option>
+            <option value="delete">Удалить (деактивировать)</option>
+            <option value="restore">Восстановить (активировать)</option>
+          </select>
+
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-play-fill"></i> Выполнить
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Карточки учеников -->
+    <div class="student-grid" id="students-grid">
+      {% for s in students %}
+        <div class="student-card {% if not s.is_active %}is-inactive{% endif %}"
+             data-class="{{ s.class_room.name|lower }}"
+             data-name="{{ s.full_name|lower }}"
+             data-active="{{ s.is_active|yesno:'1,0' }}"
+             data-priv="{{ s.is_privileged|yesno:'1,0' }}">
+
+          <div class="student-card-head">
+            <label class="pick" title="Выбрать для массового действия">
+              <input type="checkbox"
+                     class="student-check"
+                     name="student_ids"
+                     value="{{ s.id }}"
+                     form="bulk-form">
+              <span class="muted-small">выбрать</span>
+            </label>
+
+            <div class="head-badges">
+              <span class="badge" title="Класс">
+                <i class="bi bi-mortarboard"></i>
+                <strong>{{ s.class_room.name }}</strong>
+              </span>
+
+              {% if s.is_active %}
+                <span class="badge badge-success" title="Ученик активен">
+                  <i class="bi bi-check-circle"></i> Активен
+                </span>
+              {% else %}
+                <span class="badge badge-danger" title="Ученик удалён (неактивен)">
+                  <i class="bi bi-x-circle"></i> Удалён
+                </span>
+              {% endif %}
+
+              {% if s.is_privileged %}
+                <span class="badge badge-warn" title="Льготник">
+                  <i class="bi bi-star-fill"></i> Льготник
+                </span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="student-name">
+            <i class="bi bi-person"></i>
+            <span>{{ s.full_name }}</span>
+          </div>
+
+          <div class="student-card-foot">
+            <!-- toggle льготника отдельной формой -->
+            <form method="post" class="toggle-priv">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="toggle_privileged">
+              <input type="hidden" name="student_id" value="{{ s.id }}">
+              <label class="toggle-priv" title="Отметить/снять льготу">
+                <input type="checkbox"
+                       name="is_privileged"
+                       value="1"
+                       onchange="this.form.submit()"
+                       {% if s.is_privileged %}checked{% endif %}>
+                <span class="muted-small">льгота</span>
+              </label>
+            </form>
+
+            <div class="btn-row">
+              {% if s.is_active %}
+                <button type="button"
+                        class="btn btn-small btn-outline js-one-action"
+                        data-action="delete"
+                        data-student-id="{{ s.id }}">
+                  <i class="bi bi-trash"></i> Удалить
+                </button>
+              {% else %}
+                <button type="button"
+                        class="btn btn-small btn-outline js-one-action"
+                        data-action="restore"
+                        data-student-id="{{ s.id }}">
+                  <i class="bi bi-arrow-counterclockwise"></i> Восстановить
+                </button>
+              {% endif %}
+            </div>
+          </div>
+
+        </div>
+      {% empty %}
+        <div class="muted">Ученики не найдены</div>
+      {% endfor %}
+    </div>
+
+    <!-- Одна скрытая форма для удаления/восстановления одного ученика -->
+    <form method="post" id="one-action-form" style="display:none;">
+      {% csrf_token %}
+      <input type="hidden" name="action" id="one-action-type">
+      <input type="hidden" name="student_ids" id="one-action-id">
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const grid = document.getElementById('students-grid');
+  const clientSearch = document.getElementById('client-search');
+  const selectedCountEl = document.getElementById('selected-count');
+  const visibleCountEl = document.getElementById('visible-count');
+
+  function getCards() {
+    return Array.from(grid ? grid.querySelectorAll('.student-card') : []);
+  }
+
+  function updateSelectedCount() {
+    const checks = document.querySelectorAll('.student-check');
+    let n = 0;
+    checks.forEach(cb => { if (cb.checked) n += 1; });
+    if (selectedCountEl) selectedCountEl.textContent = String(n);
+  }
+
+  function updateVisibleCount() {
+    const cards = getCards();
+    let n = 0;
+    cards.forEach(c => { if (c.style.display !== 'none') n += 1; });
+    if (visibleCountEl) visibleCountEl.textContent = String(n);
+  }
+
+  if (clientSearch) {
+    clientSearch.addEventListener('input', function () {
+      const term = (this.value || '').trim().toLowerCase();
+      getCards().forEach(card => {
+        const name = card.dataset.name || '';
+        const cls = card.dataset.class || '';
+        const isMatch = !term || name.includes(term) || cls.includes(term);
+        card.style.display = isMatch ? '' : 'none';
+      });
+      updateVisibleCount();
+    });
+  }
+
+  function setAll(checked) {
+    getCards().forEach(card => {
+      if (card.style.display === 'none') return;
+      const cb = card.querySelector('.student-check');
+      if (cb) cb.checked = checked;
+    });
+    updateSelectedCount();
+  }
+
+  const checkAllBtn = document.getElementById('check-all');
+  const uncheckAllBtn = document.getElementById('uncheck-all');
+  if (checkAllBtn) checkAllBtn.addEventListener('click', () => setAll(true));
+  if (uncheckAllBtn) uncheckAllBtn.addEventListener('click', () => setAll(false));
+
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains('student-check')) {
+      updateSelectedCount();
+    }
+  });
+
+  const bulkForm = document.getElementById('bulk-form');
+  if (bulkForm) {
+    bulkForm.addEventListener('submit', (e) => {
+      const action = bulkForm.querySelector('select[name="action"]')?.value;
+      const selected = document.querySelectorAll('.student-check:checked').length;
+
+      if (!action) { e.preventDefault(); alert('Выберите действие.'); return; }
+      if (selected === 0) { e.preventDefault(); alert('Выберите хотя бы одного ученика.'); return; }
+
+      if (action === 'delete') {
+        if (!confirm('Удалить выбранных учеников? Они станут неактивными.')) e.preventDefault();
+      }
+      if (action === 'restore') {
+        if (!confirm('Восстановить выбранных учеников (сделать активными)?')) e.preventDefault();
+      }
+    });
+  }
+
+  const oneForm = document.getElementById('one-action-form');
+  const oneType = document.getElementById('one-action-type');
+  const oneId = document.getElementById('one-action-id');
+
+  document.querySelectorAll('.js-one-action').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      const id = btn.dataset.studentId;
+      if (!action || !id) return;
+
+      if (action === 'delete') {
+        if (!confirm('Удалить ученика? Он станет неактивным (история сохранится).')) return;
+      } else if (action === 'restore') {
+        if (!confirm('Восстановить ученика (сделать активным)?')) return;
+      }
+
+      oneType.value = action;
+      oneId.value = id;
+      oneForm.submit();
+    });
+  });
+
+  updateSelectedCount();
+  updateVisibleCount();
+})();
+</script>
+{% endblock %}

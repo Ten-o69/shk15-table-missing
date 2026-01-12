@@ -41,22 +41,19 @@ class ClassRoom(models.Model):
 
 
 class Student(models.Model):
-    """
-    Ученик, привязанный к классу.
-    """
-    full_name = models.CharField(
-        max_length=255,
-        verbose_name='ФИО ученика'
-    )
+    full_name = models.CharField(max_length=255, verbose_name='ФИО ученика')
     class_room = models.ForeignKey(
         ClassRoom,
         on_delete=models.CASCADE,
         related_name='students',
         verbose_name='Класс'
     )
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name='Активен'
+    is_active = models.BooleanField(default=True, verbose_name='Активен')
+
+    # ✅ НОВОЕ
+    is_privileged = models.BooleanField(
+        default=False,
+        verbose_name='Льготник'
     )
 
     class Meta:

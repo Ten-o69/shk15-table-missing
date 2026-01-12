@@ -47,6 +47,29 @@
         flex-wrap: wrap;
         gap: 0.4rem;
     }
+
+    /* ===== Льготники (нижняя таблица + модалка) ===== */
+    .priv-table .btn { white-space: nowrap; }
+
+    .readonly-list {
+        max-height: 55vh;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-right: 4px;
+        margin-top: 10px;
+    }
+    .readonly-item {
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(0,0,0,0.10);
+        background: rgba(0,0,0,0.02);
+    }
+    .modal-subtitle {
+        margin-top: 4px;
+        font-size: 0.92em;
+    }
 </style>
 
 <div class="card page-wide">
@@ -422,6 +445,61 @@
         </div>
     </div>
 
+    <!-- ✅ НИЖНЯЯ ТАБЛИЦА: ЛЬГОТНИКИ (read-only) -->
+    <div class="card-section">
+        <div class="section-header">
+            <h2>Льготники (сейчас в школе)</h2>
+        </div>
+
+        <div class="daily-summary" style="margin-bottom: 10px;">
+            <span class="muted">Итого по видимым классам:</span>
+            <span class="daily-summary-item">
+                Льготников в системе:
+                <span class="text-bold">{{ total_privileged_all|default:"0" }}</span>
+            </span>
+            <span class="daily-summary-item">
+                Льготников сейчас в школе:
+                <span class="text-bold">{{ total_privileged_present_all|default:"0" }}</span>
+            </span>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="table table-main priv-table">
+                <thead>
+                <tr>
+                    <th>Класс</th>
+                    <th>Льготников в системе</th>
+                    <th>Сейчас в школе</th>
+                    <th>Список присутствующих льготников</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for class in classes %}
+                    {% with pt=privileged_total_by_class|dict_get:class.id pp=privileged_present_count_by_class|dict_get:class.id %}
+                        <tr>
+                            <td class="text-bold">{{ class.name }}</td>
+                            <td><span>{{ pt|default:"0" }}</span></td>
+                            <td><span>{{ pp|default:"0" }}</span></td>
+                            <td>
+                                <button type="button"
+                                        class="btn btn-small btn-outline open-privileged-modal-btn"
+                                        data-class-id="{{ class.id }}"
+                                        data-class-name="{{ class.name }}">
+                                    Открыть список
+                                </button>
+                            </td>
+                        </tr>
+                    {% endwith %}
+                {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center muted">Классы не найдены</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     {# Скрытые контейнеры со списками учеников по классам для модального окна #}
     {% for class in classes %}
         <div id="students-container-{{ class.id }}" class="hidden-students-container">
@@ -433,6 +511,19 @@
                         {{ student.full_name }}
                     </div>
                 {% endfor %}
+            {% endwith %}
+        </div>
+    {% endfor %}
+
+    {# ✅ Скрытые контейнеры: присутствующие льготники по классам (для read-only модалки) #}
+    {% for class in classes %}
+        <div id="privileged-present-container-{{ class.id }}" class="hidden-students-container" style="display:none;">
+            {% with plist=privileged_present_by_class|dict_get:class.id %}
+                {% if plist %}
+                    {% for name in plist %}
+                        <div class="priv-option" data-name="{{ name|lower }}">{{ name }}</div>
+                    {% endfor %}
+                {% endif %}
             {% endwith %}
         </div>
     {% endfor %}
@@ -458,6 +549,28 @@
             </div>
         </div>
     </div>
+
+    {# ✅ Read-only модалка льготников #}
+    <div id="privileged-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="privileged-modal-title">Льготники в школе сейчас</h2>
+                <div id="privileged-modal-subtitle" class="muted modal-subtitle"></div>
+            </div>
+            <div class="modal-body">
+                <input type="text"
+                       id="privileged-search"
+                       class="input input-full"
+                       placeholder="Поиск по ФИО...">
+                <div id="privileged-list" class="readonly-list">
+                    <!-- read-only список -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="privileged-close" class="btn btn-outline">Закрыть</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -469,6 +582,7 @@
         const n = parseInt(value, 10);
         return isNaN(n) ? 0 : n;
     }
+
     // === СВЯЗКА: hidden (список id) -> number (кол-во) ===
     function getCountInputByMode(row, mode) {
         switch (mode) {
@@ -484,6 +598,7 @@
                 return null; // для 'all' нет числового поля
         }
     }
+
     function getHiddenFieldByMode(classId, mode) {
         switch (mode) {
             case 'unexcused':
@@ -498,46 +613,55 @@
                 return null;
         }
     }
+
     function countIdsFromHidden(hiddenField) {
         if (!hiddenField) return 0;
         const raw = (hiddenField.value || '').trim();
         if (!raw) return 0;
         return raw.split(',').map(s => s.trim()).filter(Boolean).length;
     }
+
     function syncNumberWithHidden(classId, mode) {
         const row = document.querySelector('tr[data-class-id="' + classId + '"]');
         if (!row) return;
+
         const hidden = getHiddenFieldByMode(classId, mode);
         const input = getCountInputByMode(row, mode);
+
         if (!hidden || !input) return;
+
         const count = countIdsFromHidden(hidden);
-        // ставим значение в число
+
         input.value = count;
-        // делаем поле read-only, чтобы правило не ломали руками
         input.readOnly = true;
         input.title = 'Число выставляется автоматически по выбранным ученикам';
-        // триггерим события, чтобы пересчиталось "Пришло по факту" и валидации
+
         input.dispatchEvent(new Event('input', { bubbles: true }));
     }
+
     // === Валидация: числовые поля (присутствующие / все типы отсутствий) против "по списку" ===
     function validateCountsForClass(classId) {
         const row = document.querySelector('tr[data-class-id="' + classId + '"]');
         if (!row) return true;
+
         const totalStudents = parseIntSafe(row.dataset.totalStudents || '0');
         if (!totalStudents) {
             return true;
         }
+
         const presentInput = row.querySelector('input[name^="reported_present_"]');
         const unexcusedInput = row.querySelector('input[name^="unexcused_absent_"]');
         const orviInput = row.querySelector('input[name^="orvi_"]');
         const otherInput = row.querySelector('input[name^="other_disease_"]');
         const familyInput = row.querySelector('input[name^="family_"]');
+
         const unexcused = unexcusedInput ? parseIntSafe(unexcusedInput.value) : 0;
         const orvi = orviInput ? parseIntSafe(orviInput.value) : 0;
         const other = otherInput ? parseIntSafe(otherInput.value) : 0;
         const family = familyInput ? parseIntSafe(familyInput.value) : 0;
+
         const totalAbsent = unexcused + orvi + other + family;
-        // считаем пришедших как "по списку − отсутствующие"
+
         let present = 0;
         if (presentInput) {
             if (totalAbsent <= totalStudents) {
@@ -547,20 +671,25 @@
             }
             presentInput.value = present;
         }
+
         let ok = true;
+
         function resetField(input) {
             if (!input) return;
             input.style.borderColor = '';
             input.style.backgroundColor = '';
             input.removeAttribute('data-invalid');
         }
+
         function markInvalid(input) {
             if (!input) return;
             input.style.borderColor = '#ff6b6b';
             input.style.backgroundColor = 'rgba(255, 107, 107, 0.08)';
             input.setAttribute('data-invalid', '1');
         }
+
         [presentInput, unexcusedInput, orviInput, otherInput, familyInput].forEach(resetField);
+
         function checkField(input, value) {
             if (!input) return;
             if (value < 0 || value > totalStudents) {
@@ -568,13 +697,16 @@
                 markInvalid(input);
             }
         }
+
         checkField(unexcusedInput, unexcused);
         checkField(orviInput, orvi);
         checkField(otherInput, other);
         checkField(familyInput, family);
+
         if (presentInput) {
             checkField(presentInput, present);
         }
+
         if (present + totalAbsent > totalStudents) {
             [presentInput, unexcusedInput, orviInput, otherInput, familyInput].forEach(function (input) {
                 if (!input) return;
@@ -582,29 +714,38 @@
             });
             ok = false;
         }
+
         return ok;
     }
+
     // === Общая валидация "число" vs "список" для конкретного вида причин ===
     function validateReasonForClass(classId, options) {
         const row = document.querySelector('tr[data-class-id="' + classId + '"]');
         if (!row) return;
+
         const input = row.querySelector('input[name^="' + options.inputPrefix + '"]');
         const errorEl = document.getElementById(options.errorIdPrefix + classId);
         const hiddenField = document.getElementById(options.hiddenIdPrefix + classId);
+
         if (!errorEl || !hiddenField) return;
+
         if (!input) {
             errorEl.textContent = '';
             errorEl.style.display = 'none';
             return;
         }
+
         const rawValue = (input.value || '').trim();
         const countValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
+
         const selectedRaw = hiddenField.value || '';
         const ids = selectedRaw
             ? selectedRaw.split(',').filter(function (s) { return s.trim() !== ''; })
             : [];
         const selectedCount = ids.length;
+
         let hasError = false;
+
         if (isNaN(countValue) || countValue < 0) {
             hasError = true;
         } else if (countValue === 0 && selectedCount === 0) {
@@ -612,6 +753,7 @@
         } else if (countValue !== selectedCount) {
             hasError = true;
         }
+
         if (hasError) {
             const label = options.label;
             errorEl.textContent =
@@ -619,15 +761,18 @@
                 ') должно совпадать с количеством выбранных учеников (' + selectedCount + ').';
             errorEl.style.display = 'block';
             errorEl.style.color = '#ff6b6b';
+
             input.style.borderColor = '#ff6b6b';
             input.style.backgroundColor = 'rgba(255, 107, 107, 0.08)';
         } else {
             errorEl.textContent = '';
             errorEl.style.display = 'none';
+
             input.style.borderColor = '';
             input.style.backgroundColor = '';
         }
     }
+
     function validateUnexcusedForClass(classId) {
         validateReasonForClass(classId, {
             inputPrefix: 'unexcused_absent_',
@@ -636,6 +781,7 @@
             label: 'неуважительных'
         });
     }
+
     function validateOrviForClass(classId) {
         validateReasonForClass(classId, {
             inputPrefix: 'orvi_',
@@ -644,6 +790,7 @@
             label: 'ОРВИ'
         });
     }
+
     function validateOtherDiseaseForClass(classId) {
         validateReasonForClass(classId, {
             inputPrefix: 'other_disease_',
@@ -652,6 +799,7 @@
             label: 'случаев по другим заболеваниям'
         });
     }
+
     function validateFamilyForClass(classId) {
         validateReasonForClass(classId, {
             inputPrefix: 'family_',
@@ -660,19 +808,23 @@
             label: 'отсутствий по семейным обстоятельствам'
         });
     }
+
     // === Валидация: все отсутствующие vs все виды причин ===
     function validateAllAbsentForClass(classId) {
         const allField = document.getElementById('all-absent-students-' + classId);
         const errorEl = document.getElementById('error-all-' + classId);
         if (!allField || !errorEl) return;
+
         const unexcusedField = document.getElementById('absent-students-' + classId);
         const orviField = document.getElementById('orvi-students-' + classId);
         const otherField = document.getElementById('other-students-' + classId);
         const familyField = document.getElementById('family-students-' + classId);
+
         const allRaw = allField.value || '';
         const allIds = allRaw
             ? allRaw.split(',').map(function (s) { return s.trim(); }).filter(Boolean)
             : [];
+
         function idsFrom(field) {
             if (!field) return [];
             const raw = field.value || '';
@@ -680,13 +832,17 @@
                 ? raw.split(',').map(function (s) { return s.trim(); }).filter(Boolean)
                 : [];
         }
+
         const unexcusedIds = idsFrom(unexcusedField);
         const orviIds = idsFrom(orviField);
         const otherIds = idsFrom(otherField);
         const familyIds = idsFrom(familyField);
+
         const allReasonIds = []
             .concat(unexcusedIds, orviIds, otherIds, familyIds);
+
         let hasError = false;
+
         if (allReasonIds.length === 0) {
             hasError = false;
         } else {
@@ -700,6 +856,7 @@
                 });
             }
         }
+
         if (hasError) {
             errorEl.textContent =
                 'В списке всех отсутствующих должны быть как минимум все ученики из всех указанных списков причин (неуважительные, ОРВИ, другие заболевания, семейные).';
@@ -710,6 +867,7 @@
             errorEl.style.display = 'none';
         }
     }
+
     // === Модальное окно выбора учеников (общая логика для всех видов) ===
     (function () {
         const modal = document.getElementById('students-modal');
@@ -717,102 +875,114 @@
         const studentsList = document.getElementById('students-list');
         const cancelBtn = document.getElementById('modal-cancel');
         const applyBtn = document.getElementById('modal-apply');
+
         let currentClassId = null;
         let currentMode = null; // 'unexcused' | 'orvi' | 'other' | 'family' | 'all'
+
         function getHiddenFieldId(classId, mode) {
             switch (mode) {
-                case 'all':
-                    return 'all-absent-students-' + classId;
-                case 'unexcused':
-                    return 'absent-students-' + classId;
-                case 'orvi':
-                    return 'orvi-students-' + classId;
-                case 'other':
-                    return 'other-students-' + classId;
-                case 'family':
-                    return 'family-students-' + classId;
-                default:
-                    return null;
+                case 'all': return 'all-absent-students-' + classId;
+                case 'unexcused': return 'absent-students-' + classId;
+                case 'orvi': return 'orvi-students-' + classId;
+                case 'other': return 'other-students-' + classId;
+                case 'family': return 'family-students-' + classId;
+                default: return null;
             }
         }
+
         function getSelectedContainerId(classId, mode) {
             switch (mode) {
-                case 'all':
-                    return 'selected-all-students-' + classId;
-                case 'unexcused':
-                    return 'selected-students-' + classId;
-                case 'orvi':
-                    return 'selected-orvi-students-' + classId;
-                case 'other':
-                    return 'selected-other-students-' + classId;
-                case 'family':
-                    return 'selected-family-students-' + classId;
-                default:
-                    return null;
+                case 'all': return 'selected-all-students-' + classId;
+                case 'unexcused': return 'selected-students-' + classId;
+                case 'orvi': return 'selected-orvi-students-' + classId;
+                case 'other': return 'selected-other-students-' + classId;
+                case 'family': return 'selected-family-students-' + classId;
+                default: return null;
             }
         }
+
         function openModal(classId, mode) {
             currentClassId = classId;
             currentMode = mode || 'unexcused';
+
             searchInput.value = '';
             studentsList.innerHTML = '';
+
             const container = document.getElementById('students-container-' + classId);
             if (!container) return;
+
             const hiddenFieldId = getHiddenFieldId(classId, currentMode);
             if (!hiddenFieldId) return;
+
             const hiddenField = document.getElementById(hiddenFieldId);
             const selectedRaw = hiddenField ? (hiddenField.value || '') : '';
             const selectedIds = selectedRaw
                 ? selectedRaw.split(',').map(function (s) { return s.trim(); })
                 : [];
+
             container.querySelectorAll('.student-option').forEach(function (item) {
                 const id = item.dataset.studentId;
                 const name = item.dataset.studentName;
+
                 const row = document.createElement('label');
                 row.className = 'student-row';
                 row.dataset.name = name.toLowerCase();
+
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.value = id;
                 if (selectedIds.includes(id)) {
                     checkbox.checked = true;
                 }
+
                 const span = document.createElement('span');
                 span.textContent = name;
+
                 row.appendChild(checkbox);
                 row.appendChild(span);
                 studentsList.appendChild(row);
             });
+
             modal.classList.remove('hidden');
             searchInput.focus();
         }
+
         function closeModal() {
             modal.classList.add('hidden');
             currentClassId = null;
             currentMode = null;
         }
+
         function applySelection() {
             if (!currentClassId || !currentMode) return;
+
             const hiddenFieldId = getHiddenFieldId(currentClassId, currentMode);
             const selectedContainerId = getSelectedContainerId(currentClassId, currentMode);
+
             const hiddenField = document.getElementById(hiddenFieldId);
             const selectedContainer = document.getElementById(selectedContainerId);
+
             if (!hiddenField || !selectedContainer) {
                 closeModal();
                 return;
             }
+
             const checked = studentsList.querySelectorAll('input[type="checkbox"]:checked');
             const ids = [];
             const names = [];
+
             checked.forEach(function (cb) {
                 ids.push(cb.value);
                 names.push(cb.parentElement.querySelector('span').textContent);
             });
+
             hiddenField.value = ids.join(',');
+
             // === АВТО-ЧИСЛО: для каждого режима кроме "all" число = кол-ву выбранных ===
             if (currentMode !== 'all') {
                 syncNumberWithHidden(currentClassId, currentMode);
             }
+
             selectedContainer.innerHTML = '';
             if (names.length === 0) {
                 const span = document.createElement('span');
@@ -830,30 +1000,37 @@
                 });
                 selectedContainer.appendChild(ul);
             }
-            // АВТО-ДОБАВЛЕНИЕ: все выбранные по любому виду (кроме 'all') летят в "все отсутствующие"
+
+            // АВТО-ДОБАВЛЕНИЕ: выбранные по причинам (кроме 'all') летят в "все отсутствующие"
             if (currentMode !== 'all') {
                 const allField = document.getElementById('all-absent-students-' + currentClassId);
                 const allContainer = document.getElementById('selected-all-students-' + currentClassId);
+
                 if (allField && allContainer) {
                     const allRaw = allField.value || '';
                     const existingAllIds = allRaw
                         ? allRaw.split(',').map(function (s) { return s.trim(); }).filter(Boolean)
                         : [];
+
                     const seen = new Set();
                     const unionIds = [];
+
                     existingAllIds.forEach(function (id) {
                         if (!seen.has(id)) {
                             seen.add(id);
                             unionIds.push(id);
                         }
                     });
+
                     ids.forEach(function (id) {
                         if (!seen.has(id)) {
                             seen.add(id);
                             unionIds.push(id);
                         }
                     });
+
                     allField.value = unionIds.join(',');
+
                     allContainer.innerHTML = '';
                     if (unionIds.length === 0) {
                         const span = document.createElement('span');
@@ -863,42 +1040,43 @@
                     } else {
                         const ulAll = document.createElement('ul');
                         ulAll.className = 'pill-list';
+
                         unionIds.forEach(function (id) {
                             const checkbox = studentsList.querySelector('input[type="checkbox"][value="' + id + '"]');
                             let nameText = 'ID ' + id;
                             if (checkbox) {
                                 const lbl = checkbox.parentElement.querySelector('span');
-                                if (lbl) {
-                                    nameText = lbl.textContent;
-                                }
+                                if (lbl) nameText = lbl.textContent;
                             }
                             const li = document.createElement('li');
                             li.className = 'pill';
                             li.textContent = nameText;
                             ulAll.appendChild(li);
                         });
+
                         allContainer.appendChild(ulAll);
                     }
                 }
             }
+
             validateUnexcusedForClass(currentClassId);
             validateOrviForClass(currentClassId);
             validateOtherDiseaseForClass(currentClassId);
             validateFamilyForClass(currentClassId);
             validateAllAbsentForClass(currentClassId);
             validateCountsForClass(currentClassId);
+
             closeModal();
         }
-        // фильтрация по поиску в модалке
+
         searchInput.addEventListener('input', function () {
             const term = this.value.toLowerCase();
             studentsList.querySelectorAll('.student-row').forEach(function (row) {
-                const name = row.dataset.name
- || '';
+                const name = row.dataset.name || '';
                 row.style.display = name.includes(term) ? '' : 'none';
             });
         });
-        // открытие модалки по кнопке
+
         document.querySelectorAll('.open-modal-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 const classId = this.dataset.classId;
@@ -906,34 +1084,36 @@
                 openModal(classId, mode);
             });
         });
+
         cancelBtn.addEventListener('click', closeModal);
         applyBtn.addEventListener('click', applySelection);
-        // закрытие по клику на фон
+
         modal.addEventListener('click', function (e) {
-            if (e.target === modal) {
-                closeModal();
-            }
+            if (e.target === modal) closeModal();
         });
-        // закрытие по Esc
+
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
-                closeModal();
-            }
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
         });
     })();
+
     // Поиск по таблице по классу
     (function () {
         const searchInput = document.getElementById('main-table-search');
         const rows = document.querySelectorAll('tr[data-class-name]');
+
         if (!searchInput) return;
+
         searchInput.addEventListener('input', function () {
             const term = this.value.toLowerCase().trim();
+
             rows.forEach(function (row) {
                 const className = (row.dataset.className || '').toLowerCase();
                 row.style.display = (!term || className.includes(term)) ? '' : 'none';
             });
         });
     })();
+
     // Валидация при вводе количества и при отправке формы
     (function () {
         const rows = document.querySelectorAll('tr[data-class-id]');
@@ -946,6 +1126,7 @@
                 'input[name^="other_disease_"], ' +
                 'input[name^="family_"]'
             );
+
             inputs.forEach(function (input) {
                 input.addEventListener('input', function () {
                     validateUnexcusedForClass(classId);
@@ -957,14 +1138,18 @@
                 });
             });
         });
+
         const form = document.querySelector('#main-table-body form');
         if (!form) return;
+
         form.addEventListener('submit', function (e) {
             let hasError = false;
+
             document.querySelectorAll('tr[data-class-id]').forEach(function (row) {
                 const classId = row.dataset.classId;
                 const input = row.querySelector('input[name^="unexcused_absent_"]');
                 if (!input) return; // строка уже сохранена
+
                 validateUnexcusedForClass(classId);
                 validateOrviForClass(classId);
                 validateOtherDiseaseForClass(classId);
@@ -973,6 +1158,7 @@
                 if (!validateCountsForClass(classId)) {
                     hasError = true;
                 }
+
                 const errorIds = [
                     'error-' + classId,
                     'error-orvi-' + classId,
@@ -980,6 +1166,7 @@
                     'error-family-' + classId,
                     'error-all-' + classId
                 ];
+
                 errorIds.forEach(function (id) {
                     const el = document.getElementById(id);
                     if (el && el.textContent.trim() !== '') {
@@ -987,12 +1174,14 @@
                     }
                 });
             });
+
             if (hasError) {
                 e.preventDefault();
                 alert('Исправьте строки с ошибками: числа по каждому виду отсутствий должны совпадать со списками учеников, не быть отрицательными и не превышать количество по списку. Все ученики из этих списков должны входить в "Все отсутствующие".');
             }
         });
     })();
+
     // Первичная синхронизация при загрузке страницы (если hidden-поля уже заполнены)
     (function () {
         document.querySelectorAll('tr[data-class-id]').forEach(function (row) {
@@ -1000,6 +1189,106 @@
             ['unexcused', 'orvi', 'other', 'family'].forEach(function (mode) {
                 syncNumberWithHidden(classId, mode);
             });
+        });
+    })();
+
+    // ✅ Read-only модалка: присутствующие льготники (по классу), поиск + всегда алфавитная сортировка
+    (function () {
+        const modal = document.getElementById('privileged-modal');
+        if (!modal) return;
+
+        const titleEl = document.getElementById('privileged-modal-title');
+        const subtitleEl = document.getElementById('privileged-modal-subtitle');
+        const searchEl = document.getElementById('privileged-search');
+        const listEl = document.getElementById('privileged-list');
+        const closeBtn = document.getElementById('privileged-close');
+
+        let allNames = [];
+        let className = '';
+
+        function sortRu(a, b) {
+            return a.localeCompare(b, 'ru', { sensitivity: 'base' });
+        }
+
+        function render(names) {
+            listEl.innerHTML = '';
+
+            if (!names.length) {
+                const empty = document.createElement('div');
+                empty.className = 'muted';
+                empty.textContent = 'Нет присутствующих льготников по этому классу.';
+                listEl.appendChild(empty);
+            } else {
+                names.forEach(n => {
+                    const item = document.createElement('div');
+                    item.className = 'readonly-item';
+                    item.textContent = n;
+                    listEl.appendChild(item);
+                });
+            }
+
+            const shown = names.length;
+            const total = allNames.length;
+
+            if (subtitleEl) {
+                const cls = className ? ('Класс ' + className + ' • ') : '';
+                subtitleEl.textContent = cls + 'Показано: ' + shown + ' из ' + total;
+            }
+        }
+
+        function openPrivModal(cid, cname) {
+            className = cname || '';
+            const container = document.getElementById('privileged-present-container-' + cid);
+
+            const raw = [];
+            if (container) {
+                container.querySelectorAll('.priv-option').forEach(el => {
+                    const t = (el.textContent || '').trim();
+                    if (t) raw.push(t);
+                });
+            }
+
+            allNames = raw.sort(sortRu);
+
+            if (titleEl) titleEl.textContent = 'Льготники в школе сейчас';
+
+            if (searchEl) searchEl.value = '';
+            render(allNames);
+
+            modal.classList.remove('hidden');
+            if (searchEl) searchEl.focus();
+        }
+
+        function closePrivModal() {
+            modal.classList.add('hidden');
+            allNames = [];
+            className = '';
+        }
+
+        document.querySelectorAll('.open-privileged-modal-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                openPrivModal(btn.dataset.classId, btn.dataset.className);
+            });
+        });
+
+        if (searchEl) {
+            searchEl.addEventListener('input', () => {
+                const term = (searchEl.value || '').trim().toLowerCase();
+                const filtered = !term
+                    ? allNames
+                    : allNames.filter(n => n.toLowerCase().includes(term));
+                render(filtered);
+            });
+        }
+
+        if (closeBtn) closeBtn.addEventListener('click', closePrivModal);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closePrivModal();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) closePrivModal();
         });
     })();
 </script>
