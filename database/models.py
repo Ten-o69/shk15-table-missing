@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class ClassRoom(models.Model):
@@ -114,6 +115,13 @@ class AttendanceSummary(models.Model):
         related_name='created_attendance_summaries',
         verbose_name='Кто внёс данные'
     )
+
+    created_at = models.DateTimeField(
+        default=timezone.now,
+        editable=False,
+        verbose_name='Создано'
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
 
     class Meta:
         verbose_name = 'Сводка посещаемости'

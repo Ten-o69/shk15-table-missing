@@ -1,5 +1,6 @@
+# views.py
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta  # ✅ timedelta добавили
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -31,6 +32,8 @@ def index(request):
     - показывает таблицу только по тем классам, которые закреплены за пользователем (ClassRoom.staff)
     - Завуч/Учитель определяются по группам
     - данные всегда за текущий день (с учётом test_date в DEBUG)
+    - ✅ после сохранения можно нажать "Изменить" 30 минут от момента СОЗДАНИЯ записи
+    - ✅ в причинах отсутствия один ученик может быть только в ОДНОМ столбце (unexcused/orvi/other/family)
     """
     if request.GET.get('test_date') and DEBUG:
         try:
@@ -66,44 +69,98 @@ def index(request):
 
     total_students_all_classes = sum(c.student_count for c in classes)
 
+    # ✅ режим редактирования по одному классу
+    edit_class_id = request.GET.get('edit_class')
+    if edit_class_id and str(edit_class_id).isdigit():
+        edit_class_id = int(edit_class_id)
+    else:
+        edit_class_id = None
+
+    # ✅ дедлайны редактирования от created_at
+    now_dt = timezone.now()
+    edit_deadline_by_class = {}
+    can_edit_by_class = {}
+
+    for s in summaries:
+        deadline = s.created_at + timedelta(minutes=30)
+        edit_deadline_by_class[s.class_room_id] = deadline
+        can_edit_by_class[s.class_room_id] = now_dt <= deadline
+
+    # если пользователь открыл edit_class, но окно уже закрыто — сбрасываем
+    if edit_class_id:
+        if edit_class_id not in summary_by_class:
+            edit_class_id = None
+        else:
+            if not can_edit_by_class.get(edit_class_id, False):
+                messages.error(request, 'Окно редактирования (30 минут) уже закрыто.')
+                edit_class_id = None
+
+    # ===== helpers =====
+    def parse_int(value):
+        try:
+            return int((value or '').strip() or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    def parse_ids(raw):
+        ids = set()
+        if not raw:
+            return ids
+        for part in raw.split(','):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                ids.add(int(part))
+            except ValueError:
+                continue
+        return ids
+
+    def validate_no_duplicates_between_reasons(class_room, unexcused_ids, orvi_ids, other_ids, family_ids):
+        # ✅ один ученик = только одна причина
+        intersections = [
+            ('Неуважительные + ОРВИ', unexcused_ids & orvi_ids),
+            ('Неуважительные + Другие заболевания', unexcused_ids & other_ids),
+            ('Неуважительные + Семейные', unexcused_ids & family_ids),
+            ('ОРВИ + Другие заболевания', orvi_ids & other_ids),
+            ('ОРВИ + Семейные', orvi_ids & family_ids),
+            ('Другие заболевания + Семейные', other_ids & family_ids),
+        ]
+        bad = [(name, ids) for name, ids in intersections if ids]
+        if bad:
+            # покажем 1-2 айди, чтобы понимать что случилось (без спама)
+            example_ids = sorted(list(bad[0][1]))[:3]
+            messages.error(
+                request,
+                f'Класс {class_room.name}: один и тот же ученик не может быть в двух причинах. '
+                f'Найдены повторы ({bad[0][0]}), пример ID: {example_ids}'
+            )
+            return False
+        return True
+
+    # ===== POST =====
     if request.method == 'POST':
         row_count = int(request.POST.get('row_count', 0))
 
-        def parse_int(value):
-            try:
-                return int((value or '').strip() or 0)
-            except (TypeError, ValueError):
-                return 0
-
-        def parse_ids(raw):
-            ids = set()
-            if not raw:
-                return ids
-            for part in raw.split(','):
-                part = part.strip()
-                if not part:
-                    continue
-                try:
-                    ids.add(int(part))
-                except ValueError:
-                    continue
-            return ids
+        edit_class_post = request.POST.get('edit_class')  # hidden input
+        if edit_class_post and str(edit_class_post).isdigit():
+            edit_class_post = int(edit_class_post)
+        else:
+            edit_class_post = None
 
         for i in range(row_count):
             class_id = request.POST.get(f'class_{i}')
-            if not class_id:
+            if not class_id or not str(class_id).isdigit():
+                continue
+            class_id = int(class_id)
+
+            # если редактируем — обрабатываем только один класс
+            if edit_class_post and class_id != edit_class_post:
                 continue
 
             try:
                 class_room = ClassRoom.objects.get(id=class_id)
             except ClassRoom.DoesNotExist:
-                continue
-
-            # уже есть запись за сегодня — не даём перезаписать
-            if AttendanceSummary.objects.filter(
-                class_room=class_room,
-                date=today
-            ).exists():
                 continue
 
             # числовые поля
@@ -146,26 +203,23 @@ def index(request):
             orvi_ids = parse_ids(orvi_students_raw)
             other_ids = parse_ids(other_students_raw)
             family_ids = parse_ids(family_students_raw)
-
             all_absent_ids = parse_ids(all_absent_students_raw)
+
+            # ✅ серверная валидация: запрет повторов между столбцами причин
+            if not validate_no_duplicates_between_reasons(class_room, unexcused_ids, orvi_ids, other_ids, family_ids):
+                return redirect('index')
 
             # реальное число неуважительных = длина списка
             unexcused_absent = len(unexcused_ids)
 
-            # --- СЕРВЕРНАЯ ВАЛИДАЦИЯ ---
-
             # 1) числа по каждому виду должны совпадать с кол-вом фамилий
-
             if unexcused_absent_raw:
                 try:
                     typed_unexcused = int(unexcused_absent_raw)
                 except ValueError:
                     typed_unexcused = None
                 if typed_unexcused is None or typed_unexcused != unexcused_absent:
-                    messages.error(
-                        request,
-                        f'Класс {class_room.name}: число неуважительных не совпадает со списком учеников.'
-                    )
+                    messages.error(request, f'Класс {class_room.name}: число неуважительных не совпадает со списком учеников.')
                     return redirect('index')
 
             if orvi_raw:
@@ -174,10 +228,7 @@ def index(request):
                 except ValueError:
                     typed_orvi = None
                 if typed_orvi is None or typed_orvi != len(orvi_ids):
-                    messages.error(
-                        request,
-                        f'Класс {class_room.name}: число ОРВИ не совпадает со списком учеников.'
-                    )
+                    messages.error(request, f'Класс {class_room.name}: число ОРВИ не совпадает со списком учеников.')
                     return redirect('index')
 
             if other_disease_raw:
@@ -186,10 +237,7 @@ def index(request):
                 except ValueError:
                     typed_other = None
                 if typed_other is None or typed_other != len(other_ids):
-                    messages.error(
-                        request,
-                        f'Класс {class_room.name}: число по другим заболеваниям не совпадает со списком учеников.'
-                    )
+                    messages.error(request, f'Класс {class_room.name}: число по другим заболеваниям не совпадает со списком учеников.')
                     return redirect('index')
 
             if family_raw:
@@ -198,19 +246,14 @@ def index(request):
                 except ValueError:
                     typed_family = None
                 if typed_family is None or typed_family != len(family_ids):
-                    messages.error(
-                        request,
-                        f'Класс {class_room.name}: число по семейным обстоятельствам не совпадает со списком учеников.'
-                    )
+                    messages.error(request, f'Класс {class_room.name}: число по семейным обстоятельствам не совпадает со списком учеников.')
                     return redirect('index')
 
-            # 2) "все отсутствующие" должны содержать всех из конкретных списков
+            # 2) all должен включать union причин
             reason_ids_union = unexcused_ids | orvi_ids | other_ids | family_ids
 
             if reason_ids_union:
                 if not all_absent_ids:
-                    # если пользователь вообще не трогал "все отсутствующие" —
-                    # просто проставим туда union
                     all_absent_ids = set(reason_ids_union)
                 elif not reason_ids_union.issubset(all_absent_ids):
                     messages.error(
@@ -219,52 +262,73 @@ def index(request):
                     )
                     return redirect('index')
 
-            # если reason_ids_union пуст, но all_absent_ids есть — считаем их неуважительными
+            # если reason_ids_union пуст, но all_absent_ids есть — считаем их неуважительными (старое поведение)
             if not reason_ids_union and all_absent_ids:
                 unexcused_ids = set(all_absent_ids)
                 unexcused_absent = len(unexcused_ids)
 
             present_auto = class_room.student_count
-
-            total_absent_count = (
-                unexcused_absent +
-                orvi_count +
-                other_disease_count +
-                family_reason_count
-            )
+            total_absent_count = unexcused_absent + orvi_count + other_disease_count + family_reason_count
 
             if present_auto and total_absent_count > present_auto:
-                messages.error(
-                    request,
-                    f'Класс {class_room.name}: суммарное число отсутствующих больше, чем учеников по списку.'
-                )
+                messages.error(request, f'Класс {class_room.name}: суммарное число отсутствующих больше, чем учеников по списку.')
                 return redirect('index')
 
             if present_auto:
                 present_reported = max(0, present_auto - total_absent_count)
             else:
-                # fallback, если не задано число по списку
                 present_reported = reported_present
 
-            # создаём сводку
-            summary = AttendanceSummary.objects.create(
-                class_room=class_room,
-                date=today,
-                present_count_auto=present_auto,
-                present_count_reported=present_reported,
-                unexcused_absent_count=unexcused_absent,
-                orvi_count=orvi_count,
-                other_disease_count=other_disease_count,
-                family_reason_count=family_reason_count,
-                created_by=user,
-            )
+            # ===== CREATE or UPDATE =====
+            existing = AttendanceSummary.objects.filter(class_room=class_room, date=today).first()
 
-            # если по какой-то причине all_absent_ids всё ещё пуст, но есть конкретные причины —
-            # берём union
+            if existing:
+                # ✅ редактирование только в окне 30 минут от created_at
+                deadline = existing.created_at + timedelta(minutes=30)
+                if timezone.now() > deadline:
+                    messages.error(request, f'Класс {class_room.name}: окно редактирования закрыто.')
+                    return redirect('index')
+
+                # ✅ обновляем summary (created_at НЕ трогаем)
+                existing.present_count_auto = present_auto
+                existing.present_count_reported = present_reported
+                existing.unexcused_absent_count = unexcused_absent
+                existing.orvi_count = orvi_count
+                existing.other_disease_count = other_disease_count
+                existing.family_reason_count = family_reason_count
+                existing.created_by = user
+                existing.save(update_fields=[
+                    'present_count_auto',
+                    'present_count_reported',
+                    'unexcused_absent_count',
+                    'orvi_count',
+                    'other_disease_count',
+                    'family_reason_count',
+                    'created_by',
+                ])
+
+                # ✅ полностью пересобираем отсутствующих
+                AbsentStudent.objects.filter(attendance=existing).delete()
+
+                summary_obj = existing
+            else:
+                summary_obj = AttendanceSummary.objects.create(
+                    class_room=class_room,
+                    date=today,
+                    present_count_auto=present_auto,
+                    present_count_reported=present_reported,
+                    unexcused_absent_count=unexcused_absent,
+                    orvi_count=orvi_count,
+                    other_disease_count=other_disease_count,
+                    family_reason_count=family_reason_count,
+                    created_by=user,
+                )
+
+            # если по какой-то причине all_absent_ids пуст, но есть причины — берём union
             if not all_absent_ids:
                 all_absent_ids = reason_ids_union
 
-            # создаём записи AbsentStudent с нормальными причинами
+            # создаём записи AbsentStudent
             for sid in all_absent_ids:
                 try:
                     student = Student.objects.get(id=sid, class_room=class_room)
@@ -280,18 +344,23 @@ def index(request):
                 elif sid in family_ids:
                     reason = AbsentStudent.Reason.FAMILY
                 else:
-                    # кто-то в "все отсутствующие", но без конкретной причины — игнорируем
+                    # в all, но без причины — игнорируем (как и раньше)
                     continue
 
                 AbsentStudent.objects.create(
-                    attendance=summary,
+                    attendance=summary_obj,
                     student=student,
                     reason=reason,
                 )
 
-        messages.success(request, 'Данные за сегодня сохранены (там, где их ещё не было).')
+        if edit_class_post:
+            messages.success(request, 'Изменения сохранены.')
+        else:
+            messages.success(request, 'Данные за сегодня сохранены (там, где их ещё не было).')
+
         return redirect('index')
 
+    # ===== CONTEXT DATA =====
     students_by_class = {
         c.id: list(c.students.filter(is_active=True).order_by('full_name'))
         for c in classes
@@ -330,12 +399,26 @@ def index(request):
         absent_ids = absent_priv_ids_by_class.get(c.id, set())
         present_names = [s.full_name for s in all_priv if s.id not in absent_ids]
         present_names.sort(key=lambda x: x.lower())
-
         privileged_present_by_class[c.id] = present_names
         privileged_present_count_by_class[c.id] = len(present_names)
 
     total_privileged_all = sum(privileged_total_by_class.get(c.id, 0) for c in classes)
     total_privileged_present_all = sum(privileged_present_count_by_class.get(c.id, 0) for c in classes)
+
+    # ✅ ids по причинам (для заполнения hidden при edit)
+    unexcused_ids_by_class = {}
+    orvi_ids_by_class = {}
+    other_ids_by_class = {}
+    family_ids_by_class = {}
+    all_absent_ids_by_class = {}
+
+    for s in summaries:
+        absents = list(s.absent_students.select_related('student').all())
+        unexcused_ids_by_class[s.class_room_id] = ','.join(str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.UNEXCUSED)
+        orvi_ids_by_class[s.class_room_id] = ','.join(str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.ORVI)
+        other_ids_by_class[s.class_room_id] = ','.join(str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.OTHER_DISEASE)
+        family_ids_by_class[s.class_room_id] = ','.join(str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.FAMILY)
+        all_absent_ids_by_class[s.class_room_id] = ','.join(str(a.student_id) for a in absents)
 
     context = {
         'today': today,
@@ -344,6 +427,18 @@ def index(request):
         'totals_saved': totals_saved,
         'total_students_all_classes': total_students_all_classes,
         'students_by_class': students_by_class,
+
+        # ✅ edit режим
+        'edit_class_id': edit_class_id,
+        'edit_deadline_by_class': edit_deadline_by_class,
+        'can_edit_by_class': can_edit_by_class,
+
+        # ✅ ids по причинам для edit
+        'unexcused_ids_by_class': unexcused_ids_by_class,
+        'orvi_ids_by_class': orvi_ids_by_class,
+        'other_ids_by_class': other_ids_by_class,
+        'family_ids_by_class': family_ids_by_class,
+        'all_absent_ids_by_class': all_absent_ids_by_class,
 
         # ✅ льготники
         'privileged_total_by_class': dict(privileged_total_by_class),
@@ -362,12 +457,6 @@ def index(request):
 @login_required
 @user_passes_test(is_deputy)
 def statistics(request):
-    """
-    Страница статистики (доступна только завучу):
-    - таблицы по дням
-    - сводная статистика за месяц по классам
-    - статистика по ученикам за месяц (по неуважительным)
-    """
     today = timezone.localdate()
 
     month = int(request.GET.get('month', today.month))
@@ -378,14 +467,12 @@ def statistics(request):
         date__month=month
     ).select_related('class_room')
 
-    # группировка по дням
     days_map = defaultdict(list)
     for s in monthly_qs.order_by('-date', 'class_room__name'):
         days_map[s.date].append(s)
 
     ordered_days = sorted(days_map.items(), key=lambda x: x[0], reverse=True)
 
-    # итоги по каждому дню
     day_totals = {}
     for day, records in days_map.items():
         total_present_auto = sum(r.present_count_auto for r in records)
@@ -404,7 +491,6 @@ def statistics(request):
             'total_family': total_family,
         }
 
-    # сводка по классам за месяц
     monthly_by_class = monthly_qs.values(
         'class_room__id',
         'class_room__name'
@@ -417,7 +503,6 @@ def statistics(request):
         total_family=Sum('family_reason_count'),
     ).order_by('class_room__name')
 
-    # статистика по ученикам: сколько раз не пришёл (НЕУВАЖИТЕЛЬНЫЕ) в этом месяце
     absences_qs = AbsentStudent.objects.filter(
         attendance__date__year=year,
         attendance__date__month=month,
@@ -445,26 +530,15 @@ def statistics(request):
 
 @login_required
 def manage_students(request):
-    """
-    Управление учениками:
-    - доступно всем авторизованным
-    - показывает учеников по классам, доступным пользователю
-    - льготники + мягкое удаление (is_active=False)
-    - поиск/фильтр/сортировка
-    """
     user = request.user
     user_is_deputy = user.groups.filter(name='Завуч').exists()
     user_is_teacher = user.groups.filter(name='Учитель').exists()
 
-    # Какие классы доступны пользователю:
-    # - завучам/суперпользователям: все классы
-    # - остальным: только закреплённые
     if user_is_deputy or user.is_superuser:
         allowed_classes = ClassRoom.objects.all().order_by('name')
     else:
         allowed_classes = ClassRoom.objects.filter(staff=user).order_by('name')
 
-    # Фильтры
     q = (request.GET.get('q') or '').strip()
     class_id = (request.GET.get('class_id') or '').strip()
     show_inactive = (request.GET.get('show_inactive') or '').strip() == '1'
@@ -493,19 +567,15 @@ def manage_students(request):
     order_fields = sort_map.get(sort, sort_map['class_asc'])
     students = students.order_by(*order_fields)
 
-    # POST-операции
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
 
-        # для bulk действий
         ids = request.POST.getlist('student_ids')
         ids = [int(x) for x in ids if str(x).isdigit()]
 
-        # для inline переключателя
         one_id = request.POST.get('student_id')
         one_id = int(one_id) if (one_id and str(one_id).isdigit()) else None
 
-        # без доступа к чужим классам
         def qs_allowed(qs):
             return qs.filter(class_room__in=allowed_classes)
 
@@ -531,7 +601,6 @@ def manage_students(request):
                 qs.update(is_privileged=False)
                 messages.success(request, f'Льгота снята: {qs.count()}')
             elif action == 'delete':
-                # мягкое удаление
                 qs.update(is_active=False)
                 messages.success(request, f'Удалено (деактивировано): {qs.count()}')
             elif action == 'restore':
@@ -550,8 +619,6 @@ def manage_students(request):
         'class_id': class_id,
         'show_inactive': show_inactive,
         'sort': sort,
-
-        # чтобы base.html корректно показывал бейджи/меню
         'is_deputy': user_is_deputy,
         'is_teacher': user_is_teacher,
     }

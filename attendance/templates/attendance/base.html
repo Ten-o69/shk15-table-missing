@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <title>{% block title %}Посещаемость{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'attendance/styles.css' %}">
-    <link rel="stylesheet" href="{% static 'attendance/bootstrap-icons.min.css' %}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
 <div class="layout">
@@ -26,6 +26,12 @@
                        class="nav-link{% if '/students' in request.path %} nav-link-active{% endif %}">
                         Управление учениками
                     </a>
+                    {% if user.is_staff %}
+                        <a href="{% url 'admin:index' %}"
+                           class="nav-link{% if '/admin' in request.path %} nav-link-active{% endif %}">
+                            Админка
+                        </a>
+                    {% endif %}
                 </nav>
             {% endif %}
         </div>
