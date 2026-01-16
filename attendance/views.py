@@ -369,8 +369,9 @@ def index(request):
     # === ЛЬГОТНИКИ: по классам + "сейчас в школе" (по отсутствующим за сегодня) ===
     privileged_qs = Student.objects.filter(
         class_room__in=classes,
-        is_active=True,
-        is_privileged=True
+        is_active=True
+    ).filter(
+        Q(privilege_type__isnull=False) | Q(is_privileged=True)
     ).select_related('class_room').order_by('class_room__name', 'full_name')
 
     priv_students_by_class = defaultdict(list)
@@ -383,8 +384,9 @@ def index(request):
     absent_priv_qs = AbsentStudent.objects.filter(
         attendance__date=today,
         attendance__class_room__in=classes,
-        student__is_active=True,
-        student__is_privileged=True
+        student__is_active=True
+    ).filter(
+        Q(student__privilege_type__isnull=False) | Q(student__is_privileged=True)
     ).values_list('attendance__class_room_id', 'student_id')
 
     absent_priv_ids_by_class = defaultdict(set)
@@ -517,6 +519,62 @@ def statistics(request):
         absence_count=Count('id')
     ).order_by('student__class_room__name', 'student__full_name')
 
+    # ===== ЛЬГОТНИКИ ПО ТИПАМ (по классам) =====
+    all_classes = ClassRoom.objects.all().order_by('name')
+
+    # считаем только активных
+    priv_qs = Student.objects.filter(
+        is_active=True,
+        class_room__in=all_classes,
+        privilege_type__isnull=False,
+    ).values(
+        'class_room_id',
+        'class_room__name',
+        'privilege_type',
+    ).annotate(cnt=Count('id'))
+
+    # подготовим матрицу: класс -> тип -> count
+    priv_types = [
+        Student.PrivilegeType.SVO,
+        Student.PrivilegeType.MULTI,
+        Student.PrivilegeType.LOW_INCOME,
+        Student.PrivilegeType.DISABLED,
+    ]
+
+    by_class = {}
+    for c in all_classes:
+        by_class[c.id] = {
+            'class_id': c.id,
+            'class_name': c.name,
+            'svo': 0,
+            'multi': 0,
+            'low_income': 0,
+            'disabled': 0,
+            'total': 0,
+        }
+
+    for row in priv_qs:
+        cid = row['class_room_id']
+        ptype = row['privilege_type']
+        cnt = row['cnt'] or 0
+        if cid not in by_class:
+            continue
+        if ptype in ('svo', 'multi', 'low_income', 'disabled'):
+            by_class[cid][ptype] = cnt
+
+    # totals per class
+    for cid, r in by_class.items():
+        r['total'] = r['svo'] + r['multi'] + r['low_income'] + r['disabled']
+
+    privileged_types_by_class = list(by_class.values())
+    privileged_types_totals = {
+        'svo': sum(r['svo'] for r in privileged_types_by_class),
+        'multi': sum(r['multi'] for r in privileged_types_by_class),
+        'low_income': sum(r['low_income'] for r in privileged_types_by_class),
+        'disabled': sum(r['disabled'] for r in privileged_types_by_class),
+    }
+    privileged_types_totals['total'] = sum(r['total'] for r in privileged_types_by_class)
+
     context = {
         'ordered_days': ordered_days,
         'day_totals': day_totals,
@@ -524,6 +582,8 @@ def statistics(request):
         'per_student': per_student,
         'month': month,
         'year': year,
+        'privileged_types_by_class': privileged_types_by_class,
+        'privileged_types_totals': privileged_types_totals,
     }
     return render(request, 'attendance/statistics.html', context)
 
@@ -568,6 +628,13 @@ def manage_students(request):
     students = students.order_by(*order_fields)
 
     if request.method == 'POST':
+        allowed_types = {
+            Student.PrivilegeType.SVO,
+            Student.PrivilegeType.MULTI,
+            Student.PrivilegeType.LOW_INCOME,
+            Student.PrivilegeType.DISABLED,
+        }
+
         action = (request.POST.get('action') or '').strip()
 
         ids = request.POST.getlist('student_ids')
@@ -591,18 +658,70 @@ def manage_students(request):
             messages.success(request, f'Обновлено: {s.full_name}')
             return redirect(request.get_full_path())
 
-        if action in ('priv_on', 'priv_off', 'delete', 'restore') and ids:
+        if action == 'set_privilege_type' and one_id:
+            try:
+                s = qs_allowed(Student.objects).get(id=one_id)
+            except Student.DoesNotExist:
+                messages.error(request, 'Ученик не найден или нет доступа.')
+                return redirect(request.get_full_path())
+
+            ptype = (request.POST.get('privilege_type') or '').strip()
+
+            # снять льготу
+            if ptype == '':
+                s.privilege_type = None
+                s.is_privileged = False
+                s.save(update_fields=['privilege_type', 'is_privileged'])
+                messages.success(request, f'Льгота снята: {s.full_name}')
+                return redirect(request.get_full_path())
+
+            # назначить тип
+            if ptype not in allowed_types:
+                messages.error(request, 'Некорректный тип льготы.')
+                return redirect(request.get_full_path())
+
+            s.privilege_type = ptype
+            s.is_privileged = True
+            s.save(update_fields=['privilege_type', 'is_privileged'])
+            messages.success(request, f'Обновлено: {s.full_name} — {s.get_privilege_type_display()}')
+            return redirect(request.get_full_path())
+
+        if action in (
+                'priv_on', 'priv_off',
+                'priv_svo', 'priv_multi', 'priv_low_income', 'priv_disabled',
+                'delete', 'restore'
+        ) and ids:
             qs = qs_allowed(Student.objects.filter(id__in=ids))
 
             if action == 'priv_on':
+                # старое поведение: просто льготник без типа
                 qs.update(is_privileged=True)
                 messages.success(request, f'Отмечено льготниками: {qs.count()}')
+
             elif action == 'priv_off':
-                qs.update(is_privileged=False)
+                qs.update(is_privileged=False, privilege_type=None)
                 messages.success(request, f'Льгота снята: {qs.count()}')
+
+            elif action == 'priv_svo':
+                qs.update(is_privileged=True, privilege_type=Student.PrivilegeType.SVO)
+                messages.success(request, f'Назначено (СВО): {qs.count()}')
+
+            elif action == 'priv_multi':
+                qs.update(is_privileged=True, privilege_type=Student.PrivilegeType.MULTI)
+                messages.success(request, f'Назначено (Многодетные): {qs.count()}')
+
+            elif action == 'priv_low_income':
+                qs.update(is_privileged=True, privilege_type=Student.PrivilegeType.LOW_INCOME)
+                messages.success(request, f'Назначено (Малоимущие): {qs.count()}')
+
+            elif action == 'priv_disabled':
+                qs.update(is_privileged=True, privilege_type=Student.PrivilegeType.DISABLED)
+                messages.success(request, f'Назначено (Инвалиды): {qs.count()}')
+
             elif action == 'delete':
                 qs.update(is_active=False)
                 messages.success(request, f'Удалено (деактивировано): {qs.count()}')
+
             elif action == 'restore':
                 qs.update(is_active=True)
                 messages.success(request, f'Восстановлено: {qs.count()}')

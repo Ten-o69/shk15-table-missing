@@ -59,7 +59,7 @@
           <input id="client-search" type="text" class="input" placeholder="Фильтр без перезагрузки">
         </label>
 
-        <span class="counter-pill muted-small" title="Количество карточек, видимых на странице">
+        <span class="counter-pill muted-small" title="Количество строк, видимых на странице">
           <i class="bi bi-people"></i>
           Видимых: <span id="visible-count">0</span>
         </span>
@@ -88,8 +88,13 @@
         <div class="actions-right">
           <select name="action" class="input" required>
             <option value="">— Действие —</option>
-            <option value="priv_on">Отметить льготниками</option>
+
+            <option value="priv_svo">Назначить: СВО</option>
+            <option value="priv_multi">Назначить: Многодетные</option>
+            <option value="priv_low_income">Назначить: Малоимущие</option>
+            <option value="priv_disabled">Назначить: Инвалиды</option>
             <option value="priv_off">Снять льготу</option>
+
             <option value="delete">Удалить (деактивировать)</option>
             <option value="restore">Восстановить (активировать)</option>
           </select>
@@ -101,93 +106,127 @@
       </div>
     </form>
 
-    <!-- Карточки учеников -->
-    <div class="student-grid" id="students-grid">
-      {% for s in students %}
-        <div class="student-card {% if not s.is_active %}is-inactive{% endif %}"
-             data-class="{{ s.class_room.name|lower }}"
-             data-name="{{ s.full_name|lower }}"
-             data-active="{{ s.is_active|yesno:'1,0' }}"
-             data-priv="{{ s.is_privileged|yesno:'1,0' }}">
+    <!-- ✅ Таблица учеников -->
+    <div class="table-wrapper" id="students-grid">
+      <table class="table table-main manage-table">
+        <thead>
+          <tr>
+            <th style="width:90px;">Выбор</th>
+            <th style="width:110px;">Класс</th>
+            <th>Ученик</th>
+            <th style="min-width:220px;">Статусы</th>
+            <th style="min-width:240px;">Льгота (тип)</th>
+            <th style="width:180px;">Действия</th>
+          </tr>
+        </thead>
 
-          <div class="student-card-head">
-            <label class="pick" title="Выбрать для массового действия">
-              <input type="checkbox"
-                     class="student-check"
-                     name="student_ids"
-                     value="{{ s.id }}"
-                     form="bulk-form">
-              <span class="muted-small">выбрать</span>
-            </label>
+        <tbody>
+          {% for s in students %}
+            <tr class="student-row student-card {% if not s.is_active %}is-inactive{% endif %}"
+                data-class="{{ s.class_room.name|lower }}"
+                data-name="{{ s.full_name|lower }}"
+                data-active="{{ s.is_active|yesno:'1,0' }}"
+                data-priv-type="{{ s.privilege_type|default:'' }}">
 
-            <div class="head-badges">
-              <span class="badge" title="Класс">
-                <i class="bi bi-mortarboard"></i>
-                <strong>{{ s.class_room.name }}</strong>
-              </span>
+              <!-- Выбор -->
+              <td>
+                <label class="pick" title="Выбрать для массового действия" style="display:flex; gap:8px; align-items:center;">
+                  <input type="checkbox"
+                         class="student-check"
+                         name="student_ids"
+                         value="{{ s.id }}"
+                         form="bulk-form">
+                  <span class="muted-small">выбрать</span>
+                </label>
+              </td>
 
-              {% if s.is_active %}
-                <span class="badge badge-success" title="Ученик активен">
-                  <i class="bi bi-check-circle"></i> Активен
+              <!-- Класс -->
+              <td>
+                <span class="badge" title="Класс">
+                  <i class="bi bi-mortarboard"></i>
+                  <strong>{{ s.class_room.name }}</strong>
                 </span>
-              {% else %}
-                <span class="badge badge-danger" title="Ученик удалён (неактивен)">
-                  <i class="bi bi-x-circle"></i> Удалён
-                </span>
-              {% endif %}
+              </td>
 
-              {% if s.is_privileged %}
-                <span class="badge badge-warn" title="Льготник">
-                  <i class="bi bi-star-fill"></i> Льготник
-                </span>
-              {% endif %}
-            </div>
-          </div>
+              <!-- ФИО -->
+              <td>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                  <span class="muted-small"><i class="bi bi-person"></i></span>
+                  <span class="text-bold">{{ s.full_name }}</span>
+                </div>
+              </td>
 
-          <div class="student-name">
-            <i class="bi bi-person"></i>
-            <span>{{ s.full_name }}</span>
-          </div>
+              <!-- Статусы -->
+              <td>
+                <div class="head-badges" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                  {% if s.is_active %}
+                    <span class="badge badge-success" title="Ученик активен">
+                      <i class="bi bi-check-circle"></i> Активен
+                    </span>
+                  {% else %}
+                    <span class="badge badge-danger" title="Ученик удалён (неактивен)">
+                      <i class="bi bi-x-circle"></i> Удалён
+                    </span>
+                  {% endif %}
 
-          <div class="student-card-foot">
-            <!-- toggle льготника отдельной формой -->
-            <form method="post" class="toggle-priv">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="toggle_privileged">
-              <input type="hidden" name="student_id" value="{{ s.id }}">
-              <label class="toggle-priv" title="Отметить/снять льготу">
-                <input type="checkbox"
-                       name="is_privileged"
-                       value="1"
-                       onchange="this.form.submit()"
-                       {% if s.is_privileged %}checked{% endif %}>
-                <span class="muted-small">льгота</span>
-              </label>
-            </form>
+                  {% if s.privilege_type %}
+                    <span class="badge badge-warn" title="Льготник">
+                      <i class="bi bi-star-fill"></i> Льготник
+                    </span>
+                  {% endif %}
+                </div>
+              </td>
 
-            <div class="btn-row">
-              {% if s.is_active %}
-                <button type="button"
-                        class="btn btn-small btn-outline js-one-action"
-                        data-action="delete"
-                        data-student-id="{{ s.id }}">
-                  <i class="bi bi-trash"></i> Удалить
-                </button>
-              {% else %}
-                <button type="button"
-                        class="btn btn-small btn-outline js-one-action"
-                        data-action="restore"
-                        data-student-id="{{ s.id }}">
-                  <i class="bi bi-arrow-counterclockwise"></i> Восстановить
-                </button>
-              {% endif %}
-            </div>
-          </div>
+              <!-- Льгота: тип + модалка -->
+              <td>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                  {% if s.privilege_type %}
+                    <span class="badge badge-warn">
+                      <i class="bi bi-bookmark-star"></i> {{ s.get_privilege_type_display }}
+                    </span>
+                  {% else %}
+                    <span class="muted">Не задано</span>
+                  {% endif %}
 
-        </div>
-      {% empty %}
-        <div class="muted">Ученики не найдены</div>
-      {% endfor %}
+                  <button type="button"
+                          class="btn btn-small btn-outline js-open-priv-type"
+                          data-student-id="{{ s.id }}"
+                          data-student-name="{{ s.full_name }}"
+                          data-current-type="{{ s.privilege_type|default:'' }}">
+                    Изменить
+                  </button>
+                </div>
+              </td>
+
+              <!-- Действия -->
+              <td>
+                <div class="btn-row" style="display:flex; gap:8px; flex-wrap:wrap;">
+                  {% if s.is_active %}
+                    <button type="button"
+                            class="btn btn-small btn-outline js-one-action"
+                            data-action="delete"
+                            data-student-id="{{ s.id }}">
+                      <i class="bi bi-trash"></i> Удалить
+                    </button>
+                  {% else %}
+                    <button type="button"
+                            class="btn btn-small btn-outline js-one-action"
+                            data-action="restore"
+                            data-student-id="{{ s.id }}">
+                      <i class="bi bi-arrow-counterclockwise"></i> Восстановить
+                    </button>
+                  {% endif %}
+                </div>
+              </td>
+
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="text-center muted">Ученики не найдены</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
 
     <!-- Одна скрытая форма для удаления/восстановления одного ученика -->
@@ -196,6 +235,58 @@
       <input type="hidden" name="action" id="one-action-type">
       <input type="hidden" name="student_ids" id="one-action-id">
     </form>
+
+    <!-- ✅ hidden form для установки типа льготы -->
+    <form method="post" id="priv-type-form" style="display:none;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="set_privilege_type">
+      <input type="hidden" name="student_id" id="priv-type-student-id">
+      <input type="hidden" name="privilege_type" id="priv-type-value">
+    </form>
+
+    <!-- ✅ модалка выбора типа льготы -->
+    <div id="priv-type-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Тип льготы</h2>
+          <div id="priv-type-subtitle" class="muted modal-subtitle"></div>
+        </div>
+
+        <div class="modal-body">
+          <div id="priv-type-list" class="students-list" style="max-height: 320px;">
+            <label class="student-row">
+              <input type="radio" name="priv_type" value="svo">
+              <span>СВО</span>
+            </label>
+            <label class="student-row">
+              <input type="radio" name="priv_type" value="multi">
+              <span>Многодетные</span>
+            </label>
+            <label class="student-row">
+              <input type="radio" name="priv_type" value="low_income">
+              <span>Малоимущие</span>
+            </label>
+            <label class="student-row">
+              <input type="radio" name="priv_type" value="disabled">
+              <span>Инвалиды</span>
+            </label>
+          </div>
+
+          <div class="muted" style="margin-top:10px;">
+            Выберите тип и нажмите «Сохранить». Чтобы полностью снять льготу — «Снять льготу».
+          </div>
+        </div>
+
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" id="priv-type-clear" class="btn btn-outline">Снять льготу</button>
+          <div style="display:flex; gap:8px;">
+            <button type="button" id="priv-type-cancel" class="btn btn-outline">Отмена</button>
+            <button type="button" id="priv-type-apply" class="btn btn-primary">Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 

@@ -84,6 +84,61 @@
         </div>
     </div>
 
+    {# === ЛЬГОТНИКИ ПО ТИПАМ === #}
+    <div class="card-section" data-section-block="privileged_types">
+      <div class="section-header">
+        <h2>Льготники по типам (по классам)</h2>
+        <button type="button"
+                class="btn btn-small btn-outline collapse-toggle"
+                data-target-id="priv-types-section-body">
+          Развернуть
+        </button>
+      </div>
+
+      <div id="priv-types-section-body" class="section-body collapsed">
+        {% if privileged_types_by_class %}
+          <div class="table-wrapper">
+            <table class="table table-compact">
+              <thead>
+              <tr>
+                <th>Класс</th>
+                <th>СВО</th>
+                <th>Многодетные</th>
+                <th>Малоимущие</th>
+                <th>Инвалиды</th>
+                <th>Итого</th>
+              </tr>
+              </thead>
+              <tbody>
+              {% for r in privileged_types_by_class %}
+                <tr data-row-type="privileged_types" data-class-name="{{ r.class_name|lower }}">
+                  <td class="text-bold">{{ r.class_name }}</td>
+                  <td>{{ r.svo }}</td>
+                  <td>{{ r.multi }}</td>
+                  <td>{{ r.low_income }}</td>
+                  <td>{{ r.disabled }}</td>
+                  <td class="text-bold">{{ r.total }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+              <tfoot class="table-footer">
+              <tr>
+                <td>Итого</td>
+                <td>{{ privileged_types_totals.svo }}</td>
+                <td>{{ privileged_types_totals.multi }}</td>
+                <td>{{ privileged_types_totals.low_income }}</td>
+                <td>{{ privileged_types_totals.disabled }}</td>
+                <td>{{ privileged_types_totals.total }}</td>
+              </tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <p class="muted">Нет льготников с указанным типом.</p>
+        {% endif %}
+      </div>
+    </div>
+
     {# === ДНЕВНАЯ СТАТИСТИКА === #}
     <div class="card-section" data-section-block="daily">
         <div class="section-header">

@@ -23,7 +23,6 @@ class ClassRoom(models.Model):
         verbose_name='Количество учеников в классе'
     )
 
-    # Закреплённые сотрудники (кто видит этот класс на главной)
     staff = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         blank=True,
@@ -42,6 +41,12 @@ class ClassRoom(models.Model):
 
 
 class Student(models.Model):
+    class PrivilegeType(models.TextChoices):
+        SVO = 'svo', 'СВО'
+        MULTI = 'multi', 'Многодетные'
+        LOW_INCOME = 'low_income', 'Малоимущие'
+        DISABLED = 'disabled', 'Инвалиды'
+
     full_name = models.CharField(max_length=255, verbose_name='ФИО ученика')
     class_room = models.ForeignKey(
         ClassRoom,
@@ -51,10 +56,20 @@ class Student(models.Model):
     )
     is_active = models.BooleanField(default=True, verbose_name='Активен')
 
-    # ✅ НОВОЕ
+    # старое поле оставляем, чтобы не ломать текущую логику/шаблоны
     is_privileged = models.BooleanField(
         default=False,
         verbose_name='Льготник'
+    )
+
+    # ✅ НОВОЕ: тип льготы
+    privilege_type = models.CharField(
+        max_length=20,
+        choices=PrivilegeType.choices,
+        null=True,
+        blank=True,
+        verbose_name='Тип льготы',
+        help_text='Если указан тип льготы — ученик считается льготником.'
     )
 
     class Meta:
@@ -74,38 +89,15 @@ class AttendanceSummary(models.Model):
         related_name='attendance_summaries',
         verbose_name='Класс'
     )
-    date = models.DateField(
-        verbose_name='Дата'
-    )
+    date = models.DateField(verbose_name='Дата')
 
-    # По списку (кол-во учеников в классе на эту дату)
-    present_count_auto = models.PositiveIntegerField(
-        verbose_name='По списку'
-    )
-    # Пришло по факту
-    present_count_reported = models.PositiveIntegerField(
-        default=0,
-        verbose_name='Пришло по факту'
-    )
-    # Неуважительные
-    unexcused_absent_count = models.PositiveIntegerField(
-        default=0,
-        verbose_name='Неуважительные отсутствия'
-    )
+    present_count_auto = models.PositiveIntegerField(verbose_name='По списку')
+    present_count_reported = models.PositiveIntegerField(default=0, verbose_name='Пришло по факту')
+    unexcused_absent_count = models.PositiveIntegerField(default=0, verbose_name='Неуважительные отсутствия')
 
-    # Отдельные виды уважительных причин
-    orvi_count = models.PositiveIntegerField(
-        default=0,
-        verbose_name='ОРВИ'
-    )
-    other_disease_count = models.PositiveIntegerField(
-        default=0,
-        verbose_name='Другие заболевания'
-    )
-    family_reason_count = models.PositiveIntegerField(
-        default=0,
-        verbose_name='По семейным обстоятельствам'
-    )
+    orvi_count = models.PositiveIntegerField(default=0, verbose_name='ОРВИ')
+    other_disease_count = models.PositiveIntegerField(default=0, verbose_name='Другие заболевания')
+    family_reason_count = models.PositiveIntegerField(default=0, verbose_name='По семейным обстоятельствам')
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -116,11 +108,7 @@ class AttendanceSummary(models.Model):
         verbose_name='Кто внёс данные'
     )
 
-    created_at = models.DateTimeField(
-        default=timezone.now,
-        editable=False,
-        verbose_name='Создано'
-    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False, verbose_name='Создано')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
 
     class Meta:

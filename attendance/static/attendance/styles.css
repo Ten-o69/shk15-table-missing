@@ -888,3 +888,173 @@ justify-content: flex-end;
 .all-absent-hint b{
     font-weight: 700;
 }
+
+/* =========================================================
+   FIX: manage_students table should NOT inherit card styles
+   ========================================================= */
+
+/* 1) Убираем "card-стили" с tr.student-card внутри таблицы */
+.manage-table tr.student-card,
+.manage-table tr.student-row {
+    display: table-row !important;
+    position: static !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    overflow: visible !important;
+}
+
+.manage-table tr.student-card::before,
+.manage-table tr.student-row::before {
+    content: none !important;
+    display: none !important;
+}
+
+/* 2) Карточные стили — ТОЛЬКО для grid-режима (если он где-то останется) */
+.student-grid .student-card {
+    position: relative;
+    border-radius: 16px;
+
+    border: 1px solid rgba(0,0,0,0.16);
+    outline: 1px solid rgba(255,255,255,0.35);
+    outline-offset: -2px;
+
+    background: rgba(0,0,0,0.025);
+
+    box-shadow:
+      0 1px 0 rgba(0,0,0,0.05),
+      0 10px 24px rgba(0,0,0,0.05);
+
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    overflow: hidden;
+}
+
+.student-grid .student-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: rgba(0,0,0,0.20);
+}
+
+/* =========================================================
+   Manage students: красивый "табличный" UX
+   ========================================================= */
+
+/* таблица управления — НЕ fixed, чтобы не ломалась на мобиле */
+.manage-table {
+    table-layout: auto !important;
+    width: 100%;
+    min-width: 980px;           /* чтобы колонки не схлопывались в кашу */
+}
+
+/* шапка */
+.manage-table th {
+    position: sticky;           /* удобно, когда много учеников */
+    top: 0;
+    z-index: 2;
+    background: #020617;
+    border-bottom: 1px solid var(--border);
+}
+
+/* ячейки */
+.manage-table td {
+    vertical-align: middle;
+}
+
+/* чуть мягче зебра (у тебя она слишком "жёсткая") */
+.manage-table tbody tr td {
+    background-color: rgba(2, 6, 23, 0.35);
+}
+.manage-table tbody tr:nth-child(even) td {
+    background-color: rgba(2, 6, 23, 0.50);
+}
+.manage-table tbody tr:hover td {
+    background-color: rgba(59, 130, 246, 0.08);
+}
+
+/* неактивные — заметно, но не "вырви-глаз" */
+.manage-table tr.is-inactive td {
+    opacity: 0.72;
+}
+.manage-table tr.is-inactive .text-bold {
+    color: var(--text-muted);
+}
+
+/* чекбокс "выбрать" — без капсулы, компактно */
+.manage-table .pick {
+    padding: 0;
+    border: none;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.manage-table .pick input {
+    transform: translateY(1px);
+}
+
+/* бейджи — аккуратно в таблице */
+.manage-table .badge {
+    margin-left: 0; /* важно: у тебя глобально стоит margin-left:6px */
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(2,6,23,0.55);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+/* статусы */
+.manage-table .badge-success {
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.25);
+}
+.manage-table .badge-danger  {
+    background: rgba(249, 115, 115, 0.12);
+    border-color: rgba(249, 115, 115, 0.25);
+}
+.manage-table .badge-warn    {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.28);
+}
+
+/* кнопки в таблице */
+.manage-table .btn {
+    white-space: nowrap;
+}
+.manage-table .btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* переключатель льготы */
+.manage-table .toggle-priv {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* на очень узких экранах пусть лучше будет горизонтальный скролл, чем "каша" */
+@media (max-width: 720px) {
+    .table-wrapper {
+        overflow-x: auto;
+    }
+    .manage-table {
+        min-width: 940px;
+    }
+}
