@@ -1,0 +1,30 @@
+/* index.css */
+
+/* подписи под заголовками в таблице */
+.th-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* Ячейка с выбором отсутствующих + ошибки */
+.absent-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Нижняя таблица льготников: кнопки не переносить */
+.priv-table .btn {
+    white-space: nowrap;
+}
+
+/* Read-only список в модалке льготников */
+.readonly-list {
+    max-height: 55vh;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 4px;
+    margin-top: 10px;
+}

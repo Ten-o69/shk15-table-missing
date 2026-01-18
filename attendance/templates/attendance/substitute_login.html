@@ -2,6 +2,9 @@
 {% load static %}
 
 {% block title %}Вход по токену{% endblock %}
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'attendance/css/login.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="card card-narrow">

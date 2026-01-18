@@ -3,6 +3,9 @@
 {% load attendance_tags %}
 
 {% block title %}Посещаемость за сегодня{% endblock %}
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'attendance/css/index.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="card page-wide">

@@ -2,6 +2,9 @@
 {% load static %}
 
 {% block title %}Управление учениками{% endblock %}
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'attendance/css/manage_students.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="card page-wide">

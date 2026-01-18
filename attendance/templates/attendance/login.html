@@ -2,7 +2,10 @@
 {% load static %}
 
 {% block title %}Вход в систему{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'attendance/bootstrap-icons.min.css' %}">{% endblock %}
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'attendance/bootstrap/bootstrap-icons.min.css' %}">
+    <link rel="stylesheet" href="{% static 'attendance/css/login.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="card card-narrow">
