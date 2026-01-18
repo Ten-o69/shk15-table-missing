@@ -6,6 +6,25 @@
     const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
     const REASON_MODES = ["unexcused", "orvi", "other", "family"];
 
+    // --- Bootstrap detection / waiting ---
+    function hasBootstrap() {
+        return typeof window !== "undefined" && !!window.bootstrap && !!window.bootstrap.Modal;
+    }
+
+    function waitForBootstrap(cb, { tries = 80, delay = 25 } = {}) {
+        let t = 0;
+        const tick = () => {
+            if (hasBootstrap()) return cb(window.bootstrap);
+            t += 1;
+            if (t >= tries) {
+                console.error("Bootstrap JS не загружен: window.bootstrap.Modal недоступен.");
+                return;
+            }
+            setTimeout(tick, delay);
+        };
+        tick();
+    }
+
     function parseIntSafe(value) {
         if (value === null || value === undefined) return 0;
         const s = String(value).trim();
@@ -222,7 +241,6 @@
         renderPillsFromIds(allContainer, classId, union);
     }
 
-    // удаляем ID из всех причин (используется когда удалили из ALL)
     function removeIdsFromAllReasons(classId, removedIds) {
         const row = getRowByClassId(classId);
         if (!row) return;
@@ -241,7 +259,6 @@
         });
     }
 
-    // ✅ запрет дублей: при применении причины переносим выбранных учеников из других причин в текущую
     function removeIdsFromOtherReasons(classId, currentMode, idsToMove) {
         const row = getRowByClassId(classId);
         if (!row) return;
@@ -266,7 +283,7 @@
     }
 
     // -----------------------------
-    // Validation: no duplicates across reasons
+    // Validation
     // -----------------------------
     function setErrorText(errEl, text) {
         if (!errEl) return;
@@ -282,7 +299,6 @@
             input.style.backgroundColor = "rgba(255, 107, 107, 0.08)";
             input.setAttribute("data-invalid", "1");
         } else {
-            // не сбрасываем, если другой валидатор уже пометил; но тут безопасно:
             input.style.borderColor = "";
             input.style.backgroundColor = "";
             input.removeAttribute("data-invalid");
@@ -290,7 +306,6 @@
     }
 
     function validateNoReasonDuplicates(classId) {
-        // Собираем: id -> [modes...]
         const map = new Map();
 
         REASON_MODES.forEach(mode => {
@@ -303,18 +318,12 @@
             });
         });
 
-        // Где id встречается более 1 раза
         const duplicates = Array.from(map.entries()).filter(([_, modes]) => modes.length > 1);
-
-        // Сначала почистим сообщения о "дублях" (но не трогаем другие ошибки, поэтому: добавляем/удаляем аккуратно)
-        // Здесь проще: если дублей нет — ничего не делаем с существующими текстами validateReason().
-        // Если дубли есть — добавим сообщение в каждый затронутый mode (дополнительно к count-ошибкам).
         if (!duplicates.length) return true;
 
         const row = getRowByClassId(classId);
         const nameMap = buildStudentMapForClass(classId);
 
-        // сгруппируем: mode -> ids[]
         const byMode = new Map();
         duplicates.forEach(([id, modes]) => {
             modes.forEach(m => {
@@ -327,17 +336,14 @@
             const err = document.getElementById(MODES[mode].errorId(classId));
             const input = row ? getCountInput(row, mode) : null;
 
-            // Показать 1-3 фамилии/ID
             const preview = ids.slice(0, 3).map(id => nameMap.get(String(id)) || `ID ${id}`);
             const msg =
                 `ОШИБКА: ученик не может быть сразу в нескольких причинах. ` +
                 `Повторы: ${preview.join(", ")}${ids.length > 3 ? "…" : ""}`;
 
-            // если там уже есть другая ошибка, добавим новую строку
             if (err) {
                 const existing = (err.textContent || "").trim();
                 if (existing) {
-                    // чтобы не дублировать одно и то же сообщение
                     if (!existing.includes("не может быть сразу в нескольких причинах")) {
                         err.textContent = existing + "\n" + msg;
                         err.style.display = "block";
@@ -354,9 +360,6 @@
         return false;
     }
 
-    // -----------------------------
-    // Validation: number vs ids per mode
-    // -----------------------------
     function validateReason(classId, mode) {
         const row = getRowByClassId(classId);
         if (!row) return;
@@ -367,12 +370,7 @@
         const hidden = getHiddenEl(classId, mode);
 
         if (!err || !hidden) return;
-
-        // если в этой строке сейчас не режим редактирования — input может отсутствовать
-        if (!input) {
-            // не трогаем (может быть readonly режим)
-            return;
-        }
+        if (!input) return;
 
         const ids = parseIdsList(hidden.value);
         const selectedCount = ids.length;
@@ -380,18 +378,10 @@
         const countValue = parseIntSafe(input.value);
         let hasError = false;
 
-        if (countValue < 0) {
-            hasError = true;
-        } else if (countValue === 0 && selectedCount === 0) {
-            hasError = false;
-        } else if (countValue !== selectedCount) {
-            hasError = true;
-        }
+        if (countValue < 0) hasError = true;
+        else if (countValue === 0 && selectedCount === 0) hasError = false;
+        else if (countValue !== selectedCount) hasError = true;
 
-        // ВАЖНО: не стираем тут сообщения о "дубликатах" (они добавляются позже).
-        // Поэтому если ошибок по числу нет — просто очищаем ТОЛЬКО "числовую" часть.
-        // Сделаем проще: если есть число-ошибка — перезапишем err полностью (она важнее),
-        // а дубликаты всё равно добавятся validateNoReasonDuplicates().
         if (hasError) {
             setErrorText(
                 err,
@@ -401,10 +391,9 @@
             input.style.borderColor = "#ff6b6b";
             input.style.backgroundColor = "rgba(255, 107, 107, 0.08)";
         } else {
-            // если в err была только числовая ошибка — очистим, но если там есть "дубликаты", оставим
             const existing = (err.textContent || "").trim();
             if (existing && existing.includes("не может быть сразу в нескольких причинах")) {
-                // оставляем, только не красим число отдельно (но оно может быть окрашено из-за дублей)
+                // оставляем
             } else {
                 setErrorText(err, "");
                 input.style.borderColor = "";
@@ -482,7 +471,6 @@
 
         function resetField(input) {
             if (!input) return;
-            // не сбрасываем, если она уже помечена как invalid другой логикой
             if (input.getAttribute("data-invalid") === "1") return;
             input.style.borderColor = "";
             input.style.backgroundColor = "";
@@ -520,218 +508,191 @@
     }
 
     function validateAllForClass(classId) {
-        // 1) число vs список
         validateReason(classId, "unexcused");
         validateReason(classId, "orvi");
         validateReason(classId, "other");
         validateReason(classId, "family");
 
-        // 2) all должен содержать union
         validateAllAbsent(classId);
 
-        // 3) запрет дублей между столбцами причин
         const noDup = validateNoReasonDuplicates(classId);
-
-        // 4) суммарные числа
         const okCounts = validateCountsForClass(classId);
 
         return noDup && okCounts;
     }
 
     // -----------------------------
-    // Modal (one modal for all modes)
+    // Students modal
     // -----------------------------
     (function initStudentsModal() {
-        const modal = document.getElementById("students-modal");
-        if (!modal) return;
+        const modalEl = document.getElementById("students-modal");
+        if (!modalEl) return;
 
         const searchInput = document.getElementById("student-search");
         const studentsList = document.getElementById("students-list");
-        const allHint = document.getElementById("all-absent-hint"); // может отсутствовать
-        const cancelBtn = document.getElementById("modal-cancel");
+        const allHint = document.getElementById("all-absent-hint");
         const applyBtn = document.getElementById("modal-apply");
 
-        let currentClassId = null;
-        let currentMode = null;
+        if (!searchInput || !studentsList || !applyBtn) {
+            console.warn("Students modal: required elements not found");
+            return;
+        }
 
-        // для режима "all": что было ДО открытия (разрешаем только удаление)
-        let allBeforeOpen = [];
+        waitForBootstrap((BS) => {
+            let currentClassId = null;
+            let currentMode = null;
+            let allBeforeOpen = [];
 
-        function openModal(classId, mode) {
-            currentClassId = String(classId);
-            currentMode = mode;
-
-            if (allHint) {
-                if (mode === "all") allHint.classList.remove("hidden");
-                else allHint.classList.add("hidden");
+            function getModal() {
+                // Важно: каждый раз получать/создавать корректный instance
+                return BS.Modal.getInstance(modalEl) || new BS.Modal(modalEl, {
+                    backdrop: false,
+                    keyboard: true,
+                    focus: true
+                });
             }
 
-            const hidden = getHiddenEl(currentClassId, currentMode);
-            if (!hidden) return;
+            function openModal(classId, mode) {
+                currentClassId = String(classId);
+                currentMode = mode;
 
-            const container = document.getElementById(`students-container-${currentClassId}`);
-            if (!container) return;
+                // hint toggle (Bootstrap friendly)
+                if (allHint) {
+                    if (mode === "all") allHint.classList.remove("d-none");
+                    else allHint.classList.add("d-none");
+                }
 
-            // sanitize hidden на открытии
-            const sanitized = parseIdsList(hidden.value);
-            hidden.value = joinIdsList(sanitized);
+                const hidden = getHiddenEl(currentClassId, currentMode);
+                if (!hidden) return;
 
-            let selectedIds = new Set(sanitized);
+                const container = document.getElementById(`students-container-${currentClassId}`);
+                if (!container) return;
 
-            if (currentMode === "all") {
-                allBeforeOpen = Array.from(selectedIds);
-            } else {
-                allBeforeOpen = [];
+                const sanitized = parseIdsList(hidden.value);
+                hidden.value = joinIdsList(sanitized);
+
+                const selectedIds = new Set(sanitized);
+                allBeforeOpen = (currentMode === "all") ? Array.from(selectedIds) : [];
+
+                studentsList.innerHTML = "";
+                searchInput.value = "";
+
+                const allowedAllSet = currentMode === "all"
+                    ? new Set(getReasonUnionIds(currentClassId).map(String))
+                    : null;
+
+                $$(".student-option", container).forEach(item => {
+                    const id = String(item.dataset.studentId || "").trim();
+                    const name = String(item.dataset.studentName || "").trim();
+                    if (!id || !/^\d+$/.test(id) || !name) return;
+
+                    const row = document.createElement("label");
+                    row.className = "student-row";
+                    row.dataset.name = name.toLowerCase();
+
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.value = id;
+                    checkbox.checked = selectedIds.has(id);
+
+                    if (currentMode === "all") {
+                        const canBeInAll = allowedAllSet ? allowedAllSet.has(id) : true;
+
+                        if (!checkbox.checked) {
+                            checkbox.disabled = true;
+                            checkbox.title = "Добавлять через «Все отсутствующие» нельзя. Используйте столбцы причин.";
+                        }
+                        if (!canBeInAll) {
+                            checkbox.checked = false;
+                            checkbox.disabled = true;
+                            checkbox.title = "Этот ученик не отмечен ни в одной причине отсутствия.";
+                        }
+                    }
+
+                    const span = document.createElement("span");
+                    span.textContent = name;
+
+                    row.appendChild(checkbox);
+                    row.appendChild(span);
+                    studentsList.appendChild(row);
+                });
+
+                const m = getModal();
+                m.show();
+                setTimeout(() => searchInput.focus(), 50);
             }
 
-            studentsList.innerHTML = "";
-            searchInput.value = "";
+            function applySelection() {
+                if (!currentClassId || !currentMode) return;
 
-            // ✅ для режима ALL: разрешаем только удаление, плюс ограничиваем множеством union причин
-            const allowedAllSet = currentMode === "all"
-                ? new Set(getReasonUnionIds(currentClassId).map(String))
-                : null;
+                const row = getRowByClassId(currentClassId);
+                if (!row) return;
 
-            $$(".student-option", container).forEach(item => {
-                const id = String(item.dataset.studentId || "").trim();
-                const name = String(item.dataset.studentName || "").trim();
-                if (!id || !/^\d+$/.test(id) || !name) return;
+                const hidden = getHiddenEl(currentClassId, currentMode);
+                const selectedContainer = getSelectedEl(currentClassId, currentMode);
 
-                const row = document.createElement("label");
-                row.className = "student-row";
-                row.dataset.name = name.toLowerCase();
+                if (!hidden || !selectedContainer) {
+                    getModal().hide();
+                    return;
+                }
 
-                const checkbox = document.createElement("input");
-                checkbox.type = "checkbox";
-                checkbox.value = id;
-                checkbox.checked = selectedIds.has(id);
+                const checked = $$('input[type="checkbox"]:checked', studentsList);
+                const idsRaw = checked.map(cb => String(cb.value).trim());
+                const ids = parseIdsList(idsRaw.join(","));
 
                 if (currentMode === "all") {
-                    // нельзя добавлять новых + нельзя добавлять тех, кого нет в union причин
-                    const canBeInAll = allowedAllSet ? allowedAllSet.has(id) : true;
-                    if (!checkbox.checked) {
-                        checkbox.disabled = true;
-                        checkbox.title = "Добавлять через «Все отсутствующие» нельзя. Используйте столбцы причин.";
-                    }
-                    if (!canBeInAll) {
-                        checkbox.checked = false;
-                        checkbox.disabled = true;
-                        checkbox.title = "Этот ученик не отмечен ни в одной причине отсутствия.";
-                    }
+                    const beforeSet = new Set(allBeforeOpen.map(String));
+                    const newAll = ids.filter(id => beforeSet.has(String(id)));
+                    const removed = allBeforeOpen.filter(id => !newAll.includes(String(id)));
+
+                    hidden.value = joinIdsList(newAll);
+                    renderPillsFromIds(selectedContainer, currentClassId, newAll);
+
+                    if (removed.length) removeIdsFromAllReasons(currentClassId, removed);
+
+                    syncAllFromReasons(currentClassId);
+                    validateAllForClass(currentClassId);
+
+                    getModal().hide();
+                    return;
                 }
 
-                const span = document.createElement("span");
-                span.textContent = name;
-
-                row.appendChild(checkbox);
-                row.appendChild(span);
-                studentsList.appendChild(row);
-            });
-
-            modal.classList.remove("hidden");
-            searchInput.focus();
-        }
-
-        function closeModal() {
-            modal.classList.add("hidden");
-            currentClassId = null;
-            currentMode = null;
-            allBeforeOpen = [];
-            if (allHint) allHint.classList.add("hidden");
-        }
-
-        function applySelection() {
-            if (!currentClassId || !currentMode) return;
-
-            const row = getRowByClassId(currentClassId);
-            if (!row) return;
-
-            const hidden = getHiddenEl(currentClassId, currentMode);
-            const selectedContainer = getSelectedEl(currentClassId, currentMode);
-
-            if (!hidden || !selectedContainer) {
-                closeModal();
-                return;
-            }
-
-            // checked
-            const checked = $$('input[type="checkbox"]:checked', studentsList);
-            const idsRaw = checked.map(cb => String(cb.value).trim());
-            const ids = parseIdsList(idsRaw.join(","));
-
-            if (currentMode === "all") {
-                // ✅ только удаление:
-                // newAll = (что было до открытия) ∩ (что осталось отмечено)
-                const beforeSet = new Set(allBeforeOpen.map(String));
-                const newAll = ids.filter(id => beforeSet.has(String(id)));
-
-                const removed = allBeforeOpen.filter(id => !newAll.includes(String(id)));
-
-                hidden.value = joinIdsList(newAll);
-                renderPillsFromIds(selectedContainer, currentClassId, newAll);
-
-                if (removed.length) {
-                    // удалили из ALL => удалить из всех причин
-                    removeIdsFromAllReasons(currentClassId, removed);
-                }
-
-                // ALL = union причин (после удаления)
+                removeIdsFromOtherReasons(currentClassId, currentMode, ids);
+                hidden.value = joinIdsList(ids);
+                renderPillsFromIds(selectedContainer, currentClassId, ids);
+                syncCountFromIds(row, currentMode, ids.length);
                 syncAllFromReasons(currentClassId);
 
                 validateAllForClass(currentClassId);
-                closeModal();
-                return;
+                getModal().hide();
             }
 
-            // ---- причины: unexcused/orvi/other/family ----
-
-            // ✅ запрет повторов: если выбрали ученика в этой причине, убираем его из других причин
-            removeIdsFromOtherReasons(currentClassId, currentMode, ids);
-
-            // 1) hidden по причине
-            hidden.value = joinIdsList(ids);
-
-            // 2) pills по причине
-            renderPillsFromIds(selectedContainer, currentClassId, ids);
-
-            // 3) число = кол-ву выбранных
-            syncCountFromIds(row, currentMode, ids.length);
-
-            // ✅ ALL = UNION всех причин (и добавление, и удаление)
-            syncAllFromReasons(currentClassId);
-
-            validateAllForClass(currentClassId);
-            closeModal();
-        }
-
-        // search inside modal
-        searchInput.addEventListener("input", () => {
-            const term = (searchInput.value || "").toLowerCase();
-            $$(".student-row", studentsList).forEach(r => {
-                const name = r.dataset.name || "";
-                r.style.display = name.includes(term) ? "" : "none";
+            // search inside modal
+            searchInput.addEventListener("input", () => {
+                const term = (searchInput.value || "").toLowerCase();
+                $$(".student-row", studentsList).forEach(r => {
+                    const name = r.dataset.name || "";
+                    r.style.display = name.includes(term) ? "" : "none";
+                });
             });
-        });
 
-        // open modal buttons
-        document.addEventListener("click", (e) => {
-            const btn = e.target.closest(".open-modal-btn");
-            if (!btn) return;
+            // open modal buttons
+            document.addEventListener("click", (e) => {
+                const btn = e.target.closest(".open-modal-btn");
+                if (!btn) return;
+                openModal(btn.dataset.classId, btn.dataset.mode || "unexcused");
+            });
 
-            const classId = btn.dataset.classId;
-            const mode = btn.dataset.mode || "unexcused";
-            openModal(classId, mode);
-        });
+            applyBtn.addEventListener("click", applySelection);
 
-        cancelBtn.addEventListener("click", closeModal);
-        applyBtn.addEventListener("click", applySelection);
-
-        modal.addEventListener("click", (e) => {
-            if (e.target === modal) closeModal();
-        });
-
-        document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
+            modalEl.addEventListener("hidden.bs.modal", () => {
+                currentClassId = null;
+                currentMode = null;
+                allBeforeOpen = [];
+                if (allHint) allHint.classList.add("d-none");
+                searchInput.value = "";
+                studentsList.innerHTML = "";
+            });
         });
     })();
 
@@ -776,7 +737,7 @@
             });
         });
 
-        const form = $("#main-table-body form");
+        const form = document.querySelector("form[method='post']");
         if (!form) return;
 
         form.addEventListener("submit", (e) => {
@@ -785,7 +746,6 @@
             $$('tr[data-class-id]').forEach(row => {
                 const classId = row.dataset.classId;
 
-                // строка не в режиме редактирования => нет input => не валидируем
                 const editableMarker = row.querySelector('input[name^="unexcused_absent_"]');
                 if (!editableMarker) return;
 
@@ -818,13 +778,12 @@
     })();
 
     // -----------------------------
-    // Initial sync when page loads (редактируемая строка)
+    // Initial sync when page loads
     // -----------------------------
     (function initInitialSync() {
         $$('tr[data-class-id]').forEach(row => {
             const classId = row.dataset.classId;
 
-            // sanitize hidden values (убираем None/null/undefined/мусор)
             Object.keys(MODES).forEach(mode => {
                 const hidden = getHiddenEl(classId, mode);
                 if (!hidden) return;
@@ -832,14 +791,12 @@
                 hidden.value = joinIdsList(clean);
             });
 
-            // синхронизируем числа только если есть input (строка редактируется)
             ["unexcused", "orvi", "other", "family"].forEach(mode => {
                 if (getHiddenEl(classId, mode) && getCountInput(row, mode)) {
                     syncCountFromHidden(classId, mode);
                 }
             });
 
-            // перерисуем pills из hidden
             Object.keys(MODES).forEach(mode => {
                 const hidden = getHiddenEl(classId, mode);
                 const container = getSelectedEl(classId, mode);
@@ -849,113 +806,111 @@
                 renderPillsFromIds(container, classId, ids);
             });
 
-            // ALL на всякий случай пересоберём из причин (чтобы гарантировать консистентность)
             syncAllFromReasons(classId);
-
-            // первичная валидация
             validateAllForClass(classId);
         });
     })();
 
     // -----------------------------
-    // Privileged modal (как было)
+    // Privileged modal
     // -----------------------------
     (function initPrivilegedModal() {
-        const modal = document.getElementById("privileged-modal");
-        if (!modal) return;
+        const modalEl = document.getElementById("privileged-modal");
+        if (!modalEl) return;
 
         const titleEl = document.getElementById("privileged-modal-title");
         const subtitleEl = document.getElementById("privileged-modal-subtitle");
         const searchEl = document.getElementById("privileged-search");
         const listEl = document.getElementById("privileged-list");
-        const closeBtn = document.getElementById("privileged-close");
 
-        let allNames = [];
-        let className = "";
-
-        function sortRu(a, b) {
-            return a.localeCompare(b, "ru", { sensitivity: "base" });
+        if (!searchEl || !listEl) {
+            console.warn("Privileged modal: required elements not found");
+            return;
         }
 
-        function render(names) {
-            listEl.innerHTML = "";
+        waitForBootstrap((BS) => {
+            let allNames = [];
+            let className = "";
 
-            if (!names.length) {
-                const empty = document.createElement("div");
-                empty.className = "muted";
-                empty.textContent = "Нет присутствующих льготников по этому классу.";
-                listEl.appendChild(empty);
-            } else {
-                names.forEach(n => {
-                    const item = document.createElement("div");
-                    item.className = "readonly-item";
-                    item.textContent = n;
-                    listEl.appendChild(item);
+            function getModal() {
+                return BS.Modal.getInstance(modalEl) || new BS.Modal(modalEl, {
+                    backdrop: false,
+                    keyboard: true,
+                    focus: true
                 });
             }
 
-            const shown = names.length;
-            const total = allNames.length;
-
-            if (subtitleEl) {
-                const cls = className ? ("Класс " + className + " • ") : "";
-                subtitleEl.textContent = cls + "Показано: " + shown + " из " + total;
-            }
-        }
-
-        function openPrivModal(cid, cname) {
-            className = cname || "";
-            const container = document.getElementById("privileged-present-container-" + cid);
-
-            const raw = [];
-            if (container) {
-                $$(".priv-option", container).forEach(el => {
-                    const t = (el.textContent || "").trim();
-                    if (t) raw.push(t);
-                });
+            function sortRu(a, b) {
+                return a.localeCompare(b, "ru", { sensitivity: "base" });
             }
 
-            allNames = raw.sort(sortRu);
+            function render(names) {
+                listEl.innerHTML = "";
 
-            if (titleEl) titleEl.textContent = "Льготники в школе сейчас";
-            if (searchEl) searchEl.value = "";
+                if (!names.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "text-secondary";
+                    empty.textContent = "Нет присутствующих льготников по этому классу.";
+                    listEl.appendChild(empty);
+                } else {
+                    names.forEach(n => {
+                        const item = document.createElement("div");
+                        item.className = "readonly-item";
+                        item.textContent = n;
+                        listEl.appendChild(item);
+                    });
+                }
 
-            render(allNames);
+                const shown = names.length;
+                const total = allNames.length;
 
-            modal.classList.remove("hidden");
-            if (searchEl) searchEl.focus();
-        }
+                if (subtitleEl) {
+                    const cls = className ? ("Класс " + className + " • ") : "";
+                    subtitleEl.textContent = cls + "Показано: " + shown + " из " + total;
+                }
+            }
 
-        function closePrivModal() {
-            modal.classList.add("hidden");
-            allNames = [];
-            className = "";
-        }
+            function openPrivModal(cid, cname) {
+                className = cname || "";
+                const container = document.getElementById("privileged-present-container-" + cid);
 
-        document.addEventListener("click", (e) => {
-            const btn = e.target.closest(".open-privileged-modal-btn");
-            if (!btn) return;
-            openPrivModal(btn.dataset.classId, btn.dataset.className);
-        });
+                const raw = [];
+                if (container) {
+                    $$(".priv-option", container).forEach(el => {
+                        const t = (el.textContent || "").trim();
+                        if (t) raw.push(t);
+                    });
+                }
 
-        if (searchEl) {
+                allNames = raw.sort(sortRu);
+
+                if (titleEl) titleEl.textContent = "Льготники в школе сейчас";
+                searchEl.value = "";
+                render(allNames);
+
+                getModal().show();
+                setTimeout(() => searchEl.focus(), 50);
+            }
+
+            document.addEventListener("click", (e) => {
+                const btn = e.target.closest(".open-privileged-modal-btn");
+                if (!btn) return;
+                openPrivModal(btn.dataset.classId, btn.dataset.className);
+            });
+
             searchEl.addEventListener("input", () => {
                 const term = (searchEl.value || "").trim().toLowerCase();
-                const filtered = !term
-                    ? allNames
-                    : allNames.filter(n => n.toLowerCase().includes(term));
+                const filtered = !term ? allNames : allNames.filter(n => n.toLowerCase().includes(term));
                 render(filtered);
             });
-        }
 
-        if (closeBtn) closeBtn.addEventListener("click", closePrivModal);
-
-        modal.addEventListener("click", (e) => {
-            if (e.target === modal) closePrivModal();
-        });
-
-        document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && !modal.classList.contains("hidden")) closePrivModal();
+            modalEl.addEventListener("hidden.bs.modal", () => {
+                allNames = [];
+                className = "";
+                searchEl.value = "";
+                listEl.innerHTML = "";
+                if (subtitleEl) subtitleEl.textContent = "";
+            });
         });
     })();
 })();

@@ -2,15 +2,15 @@
 
 /* подписи под заголовками в таблице */
 .th-sub {
-    font-size: 11px;
-    color: var(--text-muted);
+    font-size: 0.75rem;
+    color: rgba(229,231,235,0.65);
 }
 
 /* Ячейка с выбором отсутствующих + ошибки */
 .absent-cell {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0.5rem;
 }
 
 /* Нижняя таблица льготников: кнопки не переносить */
@@ -18,13 +18,125 @@
     white-space: nowrap;
 }
 
+/* Summary bar: быстрые “плашки” итогов, красиво и адаптивно */
+.summary-bar {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.03);
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 12px;
+    background: rgba(2,6,23,0.40);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.summary-label {
+    font-size: 0.75rem;
+    color: rgba(229,231,235,0.65);
+    line-height: 1.1;
+}
+
+.summary-value {
+    font-weight: 700;
+    font-size: clamp(0.95rem, 0.9rem + 0.3vw, 1.1rem);
+    line-height: 1.15;
+}
+
+/* адаптация summary под экраны */
+@media (max-width: 992px) {
+    .summary-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 576px) {
+    .summary-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Улучшаем прокрутку таблиц на мобиле */
+.app-table-responsive {
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+/* таблица: чтобы длинные заголовки были читабельнее */
+.table-main thead th {
+    vertical-align: bottom;
+    padding-top: .9rem;
+    padding-bottom: .75rem;
+}
+
+/* pills чуть аккуратнее в тёмной теме */
+.pill {
+    background: rgba(2,6,23,0.55);
+    border-color: rgba(255,255,255,0.10);
+}
+
+/* -----------------------
+   Bootstrap modal UX
+------------------------ */
+
+/* список в модалке — чтобы не “съедал” всё место */
+#students-list.students-list {
+    max-height: min(55vh, 520px);
+    overflow: auto;
+    padding-right: 4px;
+}
+
+/* Чекбокс-строки аккуратно и кликабельно */
+.student-row {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .55rem .65rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(2,6,23,0.35);
+    cursor: pointer;
+    user-select: none;
+}
+
+.student-row:hover {
+    background: rgba(59,130,246,0.10);
+    border-color: rgba(59,130,246,0.26);
+}
+
+.student-row input[type="checkbox"] {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin-top: 0;
+}
+
 /* Read-only список в модалке льготников */
 .readonly-list {
-    max-height: 55vh;
+    max-height: min(55vh, 520px);
     overflow: auto;
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding-right: 4px;
-    margin-top: 10px;
+}
+
+.readonly-item {
+    padding: .55rem .65rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(2,6,23,0.35);
+}
+
+/* Hint: мы используем d-none вместо hidden */
+#all-absent-hint b { font-weight: 700; }
+
+/* мелкие правки под мобилку */
+@media (max-width: 576px) {
+    .student-row {
+        padding: .6rem .7rem;
+    }
 }
