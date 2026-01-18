@@ -1,3 +1,6 @@
+import hashlib
+import secrets
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -154,3 +157,73 @@ class AbsentStudent(models.Model):
 
     def __str__(self):
         return f'{self.student} ({self.get_reason_display()}) {self.attendance.date}'
+
+
+class SubstituteAccessToken(models.Model):
+    """
+    Временный токен замены:
+    - выдаёт завуч
+    - привязан к КЛАССУ (а значит и к классному руководителю: class_room.teacher)
+    - действует до expires_at
+    - хранится только HASH токена (сырой токен показываем только при создании)
+    """
+    class_room = models.ForeignKey(
+        'ClassRoom',
+        on_delete=models.CASCADE,
+        related_name='substitute_tokens',
+        verbose_name='Класс'
+    )
+
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='issued_substitute_tokens',
+        verbose_name='Кто выдал'
+    )
+
+    token_hash = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        verbose_name='SHA256 токена'
+    )
+
+    created_at = models.DateTimeField(default=timezone.now, editable=False, verbose_name='Создано')
+    expires_at = models.DateTimeField(verbose_name='Истекает')
+    revoked_at = models.DateTimeField(null=True, blank=True, verbose_name='Отозван')
+
+    last_used_at = models.DateTimeField(null=True, blank=True, verbose_name='Последнее использование')
+
+    ttl_seconds = models.PositiveIntegerField(
+        default=3600,
+        verbose_name='Длительность (сек)'
+    )
+
+    class Meta:
+        verbose_name = 'Токен замены'
+        verbose_name_plural = 'Токены замены'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.class_room} до {self.expires_at:%d.%m.%Y %H:%M}'
+
+    @staticmethod
+    def hash_token(raw: str) -> str:
+        return hashlib.sha256(raw.encode('utf-8')).hexdigest()
+
+    @staticmethod
+    def generate_raw_token() -> str:
+        # достаточно длинный, удобный для копирования
+        return secrets.token_urlsafe(24)
+
+    @property
+    def is_active(self) -> bool:
+        now = timezone.now()
+        return self.revoked_at is None and now <= self.expires_at
+
+    @property
+    def target_user(self):
+        # классный руководитель
+        return self.class_room.teacher

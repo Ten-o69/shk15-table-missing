@@ -43,16 +43,19 @@
                 </button>
             </div>
         </div>
+
         {% if form.errors %}
             <div class="alert alert-danger">
                 Неверное имя пользователя или пароль.
             </div>
         {% endif %}
 
-        <div class="form-actions">
+        <div class="form-actions" style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
             <button type="submit" class="btn btn-primary">Войти</button>
+            <a href="{% url 'substitute_login' %}" class="btn btn-outline">Вы заменяете?</a>
         </div>
     </form>
 </div>
+
 <script src="{% static 'attendance/js/login.js' %}"></script>
 {% endblock %}

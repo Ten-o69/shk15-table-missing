@@ -1,16 +1,30 @@
-# views.py
 from collections import defaultdict
-from datetime import datetime, timedelta  # ✅ timedelta добавили
+from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth import login as auth_login
 from django.db.models import Sum, Count, Q
 from django.shortcuts import render, redirect
 from django.utils import timezone
 
-from database.models import ClassRoom, Student, AttendanceSummary, AbsentStudent
+from database.models import ClassRoom, Student, AttendanceSummary, AbsentStudent, SubstituteAccessToken
 from school_attendance.settings import DEBUG
+from datetime import datetime, timedelta
+
+
+def deny_substitute_access(view_func):
+    """
+    Запрещает доступ к view, если пользователь вошёл по токену замены.
+    """
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if request.session.get('substitute_as'):
+            messages.error(request, 'Доступ ограничен: вы вошли как заменяющий по токену.')
+            return redirect('index')
+        return view_func(request, *args, **kwargs)
+    return _wrapped
 
 
 def is_deputy(user):
@@ -19,6 +33,13 @@ def is_deputy(user):
 
 class UserLoginView(LoginView):
     template_name = 'attendance/login.html'
+
+    def form_valid(self, form):
+        resp = super().form_valid(form)
+        self.request.session.pop('substitute_as', None)
+        self.request.session.pop('substitute_class_id', None)
+        self.request.session.pop('substitute_token_id', None)
+        return resp
 
 
 class UserLogoutView(LogoutView):
@@ -47,10 +68,22 @@ def index(request):
     user_is_deputy = user.groups.filter(name='Завуч').exists()
     user_is_teacher = user.groups.filter(name='Учитель').exists()
 
-    if user_is_deputy or user_is_teacher:
-        classes = ClassRoom.objects.filter(staff=user).order_by('name')
+    is_substitute = bool(request.session.get('substitute_as'))
+    substitute_class_id = request.session.get('substitute_class_id')
+
+    if is_substitute and substitute_class_id:
+        # ✅ заменяющий видит только класс, на который выдан токен
+        classes = ClassRoom.objects.filter(id=substitute_class_id).order_by('name')
+
+        # ✅ режем права: никакого "завуча" даже если аккаунт в группе
+        user_is_deputy = False
+        # teacher можно оставить True для бейджа/меню, но лучше явно показывать режим замены в base.html
+        user_is_teacher = True
     else:
-        classes = ClassRoom.objects.none()
+        if user_is_deputy or user_is_teacher:
+            classes = ClassRoom.objects.filter(staff=user).order_by('name')
+        else:
+            classes = ClassRoom.objects.none()
 
     summaries = AttendanceSummary.objects.filter(
         date=today,
@@ -206,7 +239,8 @@ def index(request):
             all_absent_ids = parse_ids(all_absent_students_raw)
 
             # ✅ серверная валидация: запрет повторов между столбцами причин
-            if not validate_no_duplicates_between_reasons(class_room, unexcused_ids, orvi_ids, other_ids, family_ids):
+            if not validate_no_duplicates_between_reasons(class_room, unexcused_ids, orvi_ids,
+                                                          other_ids, family_ids):
                 return redirect('index')
 
             # реальное число неуважительных = длина списка
@@ -219,7 +253,8 @@ def index(request):
                 except ValueError:
                     typed_unexcused = None
                 if typed_unexcused is None or typed_unexcused != unexcused_absent:
-                    messages.error(request, f'Класс {class_room.name}: число неуважительных не совпадает со списком учеников.')
+                    messages.error(request, f'Класс {class_room.name}: число '
+                                            f'неуважительных не совпадает со списком учеников.')
                     return redirect('index')
 
             if orvi_raw:
@@ -228,7 +263,8 @@ def index(request):
                 except ValueError:
                     typed_orvi = None
                 if typed_orvi is None or typed_orvi != len(orvi_ids):
-                    messages.error(request, f'Класс {class_room.name}: число ОРВИ не совпадает со списком учеников.')
+                    messages.error(request, f'Класс {class_room.name}: число '
+                                            f'ОРВИ не совпадает со списком учеников.')
                     return redirect('index')
 
             if other_disease_raw:
@@ -237,7 +273,8 @@ def index(request):
                 except ValueError:
                     typed_other = None
                 if typed_other is None or typed_other != len(other_ids):
-                    messages.error(request, f'Класс {class_room.name}: число по другим заболеваниям не совпадает со списком учеников.')
+                    messages.error(request, f'Класс {class_room.name}: число по '
+                                            f'другим заболеваниям не совпадает со списком учеников.')
                     return redirect('index')
 
             if family_raw:
@@ -246,7 +283,8 @@ def index(request):
                 except ValueError:
                     typed_family = None
                 if typed_family is None or typed_family != len(family_ids):
-                    messages.error(request, f'Класс {class_room.name}: число по семейным обстоятельствам не совпадает со списком учеников.')
+                    messages.error(request, f'Класс {class_room.name}: число '
+                                            f'по семейным обстоятельствам не совпадает со списком учеников.')
                     return redirect('index')
 
             # 2) all должен включать union причин
@@ -258,7 +296,8 @@ def index(request):
                 elif not reason_ids_union.issubset(all_absent_ids):
                     messages.error(
                         request,
-                        f'Класс {class_room.name}: список всех отсутствующих должен включать всех учеников из частных списков причин.'
+                        f'Класс {class_room.name}: список всех отсутствующих '
+                        f'должен включать всех учеников из частных списков причин.'
                     )
                     return redirect('index')
 
@@ -271,7 +310,8 @@ def index(request):
             total_absent_count = unexcused_absent + orvi_count + other_disease_count + family_reason_count
 
             if present_auto and total_absent_count > present_auto:
-                messages.error(request, f'Класс {class_room.name}: суммарное число отсутствующих больше, чем учеников по списку.')
+                messages.error(request, f'Класс {class_room.name}: суммарное число '
+                                        f'отсутствующих больше, чем учеников по списку.')
                 return redirect('index')
 
             if present_auto:
@@ -416,11 +456,16 @@ def index(request):
 
     for s in summaries:
         absents = list(s.absent_students.select_related('student').all())
-        unexcused_ids_by_class[s.class_room_id] = ','.join(str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.UNEXCUSED)
-        orvi_ids_by_class[s.class_room_id] = ','.join(str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.ORVI)
-        other_ids_by_class[s.class_room_id] = ','.join(str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.OTHER_DISEASE)
-        family_ids_by_class[s.class_room_id] = ','.join(str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.FAMILY)
-        all_absent_ids_by_class[s.class_room_id] = ','.join(str(a.student_id) for a in absents)
+        unexcused_ids_by_class[s.class_room_id] = ','.join(
+            str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.UNEXCUSED)
+        orvi_ids_by_class[s.class_room_id] = ','.join(
+            str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.ORVI)
+        other_ids_by_class[s.class_room_id] = ','.join(
+            str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.OTHER_DISEASE)
+        family_ids_by_class[s.class_room_id] = ','.join(
+            str(a.student_id) for a in absents if a.reason == AbsentStudent.Reason.FAMILY)
+        all_absent_ids_by_class[s.class_room_id] = ','.join(
+            str(a.student_id) for a in absents)
 
     context = {
         'today': today,
@@ -452,11 +497,14 @@ def index(request):
         # ✅ чтобы base.html корректно показывал бейджи/меню
         'is_deputy': user_is_deputy,
         'is_teacher': user_is_teacher,
+
+        'is_substitute': is_substitute,
     }
     return render(request, 'attendance/index.html', context)
 
 
 @login_required
+@deny_substitute_access
 @user_passes_test(is_deputy)
 def statistics(request):
     today = timezone.localdate()
@@ -589,6 +637,7 @@ def statistics(request):
 
 
 @login_required
+@deny_substitute_access
 def manage_students(request):
     user = request.user
     user_is_deputy = user.groups.filter(name='Завуч').exists()
@@ -742,3 +791,224 @@ def manage_students(request):
         'is_teacher': user_is_teacher,
     }
     return render(request, 'attendance/manage_students.html', context)
+
+
+def substitute_login(request):
+    """
+    Вход по токену замены:
+    - вводится только токен
+    - логиним как классного руководителя (class_room.teacher)
+    - ограничиваем доступ одним классом (session substitute_class_id)
+    """
+    if request.method == 'POST':
+        raw = (request.POST.get('token') or '').strip()
+
+        if not raw:
+            return render(request, 'attendance/substitute_login.html',
+                          {'error': 'Введите токен.'})
+
+        token_hash = SubstituteAccessToken.hash_token(raw)
+        tok = SubstituteAccessToken.objects.select_related('class_room', 'class_room__teacher').filter(
+            token_hash=token_hash
+        ).first()
+
+        if not tok or not tok.is_active:
+            return render(request, 'attendance/substitute_login.html',
+                          {'error': 'Токен не найден, истёк или отозван.'})
+
+        teacher = tok.target_user
+        if not teacher or not teacher.is_active:
+            return render(request, 'attendance/substitute_login.html',
+                          {'error': 'У класса не задан активный классный руководитель.'})
+
+        # логиним как классного руководителя
+        auth_login(request, teacher)
+
+        # запоминаем, что это вход по токену (и ограничиваем одним классом)
+        request.session['substitute_as'] = True
+        request.session['substitute_class_id'] = tok.class_room_id
+        request.session['substitute_token_id'] = tok.id
+
+        # жёстко ограничим сессию оставшимся временем токена
+        remaining = int((tok.expires_at - timezone.now()).total_seconds())
+        if remaining > 0:
+            request.session.set_expiry(remaining)
+
+        tok.last_used_at = timezone.now()
+        tok.save(update_fields=['last_used_at'])
+
+        messages.success(request, f'Вход выполнен. Режим замены: {tok.class_room.name}.')
+        return redirect('index')
+
+    return render(request, 'attendance/substitute_login.html')
+
+
+@login_required
+@deny_substitute_access
+@user_passes_test(is_deputy)
+def substitute_tokens(request):
+    classes = ClassRoom.objects.select_related('teacher').order_by('name')
+
+    def ttl_from_post(post):
+        # значения из модалки
+        sec = int(post.get('ttl_sec') or 0)
+        minute = int(post.get('ttl_min') or 0)
+        hour = int(post.get('ttl_hour') or 0)
+        day = int(post.get('ttl_day') or 0)
+        week = int(post.get('ttl_week') or 0)
+
+        total = sec + minute * 60 + hour * 3600 + day * 86400 + week * 604800
+        return total
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+
+        # --- delete (полное удаление) ---
+        if action == "delete":
+            tid = request.POST.get("token_id") or request.POST.get("id")
+            if not (tid and str(tid).isdigit()):
+                messages.error(request, "Некорректный token_id.")
+                return redirect(request.path)
+
+            tok = SubstituteAccessToken.objects.filter(id=int(tid)).first()
+            if not tok:
+                messages.error(request, "Токен не найден.")
+                return redirect(request.path)
+
+            tok.delete()
+            messages.success(request, "Токен удалён.")
+            return redirect(request.path)
+
+        # --- revoke ---
+        if action == 'revoke':
+            tid = request.POST.get('token_id')
+            if tid and str(tid).isdigit():
+                tok = SubstituteAccessToken.objects.filter(id=int(tid)).first()
+                if tok and tok.revoked_at is None:
+                    tok.revoked_at = timezone.now()
+                    tok.save(update_fields=['revoked_at'])
+                    messages.success(request, 'Токен отозван.')
+                else:
+                    messages.error(request, 'Токен не найден или уже отозван.')
+            else:
+                messages.error(request, 'Некорректный токен.')
+            return redirect(request.path)
+
+        # --- recreate (ROTATE token in the SAME row) ---
+        if action == 'recreate':
+            tid = request.POST.get('token_id')
+            if not (tid and str(tid).isdigit()):
+                messages.error(request, 'Некорректный токен.')
+                return redirect(request.path)
+
+            tok = SubstituteAccessToken.objects.select_related(
+                'class_room', 'class_room__teacher'
+            ).filter(id=int(tid)).first()
+
+            if not tok:
+                messages.error(request, 'Токен не найден.')
+                return redirect(request.path)
+
+            if not tok.class_room.teacher or not tok.class_room.teacher.is_active:
+                messages.error(request, 'У класса не задан активный классный руководитель.')
+                return redirect(request.path)
+
+            # генерим новый токен
+            raw = SubstituteAccessToken.generate_raw_token()
+            h = SubstituteAccessToken.hash_token(raw)
+
+            now = timezone.now()
+
+            tok.token_hash = h
+            tok.revoked_at = None
+            tok.issued_by = request.user
+            tok.expires_at = now + timedelta(seconds=tok.ttl_seconds)
+
+            # чтобы было видно обновление "сейчас"
+            tok.created_at = now
+
+            tok.save(update_fields=[
+                'token_hash',
+                'revoked_at',
+                'issued_by',
+                'expires_at',
+                'created_at',
+            ])
+
+            # ✅ показываем токен после редиректа (один раз)
+            request.session["created_token"] = raw
+
+            messages.success(
+                request,
+                f'Токен пересоздан для {tok.class_room.name}. '
+                f'Скопируйте код ниже — он показывается один раз!'
+            )
+            return redirect(request.path)
+
+        # --- create ---
+        if action == 'create':
+            class_id = request.POST.get('class_id')
+            if not (class_id and str(class_id).isdigit()):
+                messages.error(request, 'Выберите класс.')
+                return redirect(request.path)
+
+            ttl_seconds = ttl_from_post(request.POST)
+
+            if ttl_seconds < 30:
+                messages.error(request, 'Минимальная длительность — 30 секунд.')
+                return redirect(request.path)
+
+            if ttl_seconds > 14 * 24 * 3600:
+                messages.error(request, 'Максимальная длительность — 2 недели.')
+                return redirect(request.path)
+
+            class_room = ClassRoom.objects.select_related('teacher').filter(id=int(class_id)).first()
+            if not class_room:
+                messages.error(request, 'Класс не найден.')
+                return redirect(request.path)
+
+            if not class_room.teacher or not class_room.teacher.is_active:
+                messages.error(request, 'У класса не задан активный классный руководитель.')
+                return redirect(request.path)
+
+            raw = SubstituteAccessToken.generate_raw_token()
+            h = SubstituteAccessToken.hash_token(raw)
+
+            now = timezone.now()
+            SubstituteAccessToken.objects.create(
+                class_room=class_room,
+                issued_by=request.user,
+                token_hash=h,
+                ttl_seconds=ttl_seconds,
+                expires_at=now + timedelta(seconds=ttl_seconds),
+            )
+
+            # ✅ показываем токен после редиректа (один раз)
+            request.session["created_token"] = raw
+
+            messages.success(
+                request,
+                f'Токен создан для {class_room.name}. Скопируйте код ниже — он показывается один раз!'
+            )
+            return redirect(request.path)
+
+        # неизвестное действие
+        messages.error(request, 'Неизвестное действие.')
+        return redirect(request.path)
+
+    # ===== GET =====
+    # ✅ достаем токен один раз после редиректа
+    created_token = request.session.pop("created_token", None)
+
+    tokens = SubstituteAccessToken.objects.select_related(
+        'class_room', 'issued_by', 'class_room__teacher'
+    ).order_by('-created_at')[:200]
+
+    context = {
+        'classes': classes,
+        'tokens': tokens,
+        'created_token': created_token,
+        'is_deputy': True,
+        'is_teacher': request.user.groups.filter(name='Учитель').exists(),
+    }
+    return render(request, 'attendance/substitute_tokens.html', context)

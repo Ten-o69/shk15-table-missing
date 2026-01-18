@@ -17,16 +17,21 @@
                     <a href="{% url 'index' %}" class="nav-link{% if request.path == '/' %} nav-link-active{% endif %}">
                         Главная
                     </a>
-                    {% if is_deputy %}
+                    {% if is_deputy and not request.session.substitute_as %}
                         <a href="{% url 'statistics' %}" class="nav-link{% if '/statistics' in request.path %} nav-link-active{% endif %}">
                             Статистика
                         </a>
+                        <a href="{% url 'substitute_tokens' %}" class="nav-link{% if '/substitute-tokens' in request.path %} nav-link-active{% endif %}">
+                          Токены замены
+                        </a>
                     {% endif %}
-                    <a href="{% url 'manage_students' %}"
-                       class="nav-link{% if '/students' in request.path %} nav-link-active{% endif %}">
-                        Управление учениками
-                    </a>
-                    {% if user.is_staff %}
+                    {% if not request.session.substitute_as %}
+                        <a href="{% url 'manage_students' %}"
+                           class="nav-link{% if '/students' in request.path %} nav-link-active{% endif %}">
+                            Управление учениками
+                        </a>
+                    {% endif %}
+                    {% if user.is_staff and not request.session.substitute_as %}
                         <a href="{% url 'admin:index' %}"
                            class="nav-link{% if '/admin' in request.path %} nav-link-active{% endif %}">
                             Админка

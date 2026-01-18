@@ -1,0 +1,212 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Токены замены{% endblock %}
+
+{% block content %}
+<div class="card page-wide">
+  <div class="card-header">
+    <h1>Токены замены</h1>
+    <p class="card-subtitle">
+      Выдавайте временные токены для замены. Токен привязан к классу и действует до указанного времени.
+    </p>
+  </div>
+
+  <div class="card-section">
+
+    <div class="subcard">
+      <h3>Создать токен</h3>
+
+      <form method="post" id="create-token-form" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+
+        <label style="min-width:220px;">
+          Класс:
+          <select name="class_id" class="input" required>
+            <option value="">— выберите —</option>
+            {% for c in classes %}
+              <option value="{{ c.id }}">
+                {{ c.name }} {% if c.teacher %}(КР: {{ c.teacher.get_full_name|default:c.teacher.username }}){% else %}(нет КР){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <!-- Скрытые поля длительности (заполняются модалкой) -->
+        <input type="hidden" name="ttl_sec"  id="ttl_sec"  value="0">
+        <input type="hidden" name="ttl_min"  id="ttl_min"  value="30">
+        <input type="hidden" name="ttl_hour" id="ttl_hour" value="0">
+        <input type="hidden" name="ttl_day"  id="ttl_day"  value="0">
+        <input type="hidden" name="ttl_week" id="ttl_week" value="0">
+
+        <div style="display:flex; flex-direction:column; gap:6px; min-width:260px;">
+          <span class="muted-small">Длительность:</span>
+          <button type="button" class="btn btn-outline" id="open-ttl-modal">
+            Настроить время
+          </button>
+          <div class="muted" id="ttl-preview" style="margin-top:4px;">30 мин</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+          Создать
+        </button>
+      </form>
+
+      {% if created_token %}
+        <div class="all-absent-hint" style="margin-top:12px;">
+          <b>Токен готов.</b> Скопируйте — он показывается только сейчас:
+          <div id="token-box"
+               style="margin-top:8px; padding:10px; border:1px solid rgba(255,255,255,0.18); border-radius:10px; background:#020617; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+            <span id="token-text">{{ created_token }}</span>
+            <button type="button" class="btn btn-small btn-outline" id="copy-token-btn">
+              Копировать
+            </button>
+          </div>
+          <div class="muted" id="copy-status" style="margin-top:6px; display:none;"></div>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="subcard">
+      <h3>Последние токены</h3>
+
+      <div class="table-wrapper">
+        <table class="table table-compact">
+          <thead>
+            <tr>
+              <th>Класс</th>
+              <th>КР</th>
+              <th>Выдал</th>
+              <th>Создан</th>
+              <th>Истекает</th>
+              <th>Длительность</th>
+              <th>Статус</th>
+              <th style="min-width:320px;">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in tokens %}
+              <tr>
+                <td class="text-bold">{{ t.class_room.name }}</td>
+                <td>
+                  {% if t.class_room.teacher %}
+                    {{ t.class_room.teacher.get_full_name|default:t.class_room.teacher.username }}
+                  {% else %}
+                    <span class="muted">не задан</span>
+                  {% endif %}
+                </td>
+                <td>{{ t.issued_by.get_full_name|default:t.issued_by.username|default:"—" }}</td>
+                <td>{{ t.created_at|date:"d.m.Y H:i" }}</td>
+                <td>{{ t.expires_at|date:"d.m.Y H:i" }}</td>
+
+                <td>
+                  <span class="muted-small">{{ t.ttl_seconds }} сек</span>
+                </td>
+
+                <td>
+                  {% if t.revoked_at %}
+                    <span class="badge badge-danger">Отозван</span>
+                  {% elif t.is_active %}
+                    <span class="badge badge-success">Активен</span>
+                  {% else %}
+                    <span class="badge badge-danger">Истёк</span>
+                  {% endif %}
+                </td>
+
+                <td style="white-space:nowrap; display:flex; gap:8px; flex-wrap:wrap;">
+                  <!-- Пересоздать (с теми же параметрами) -->
+                  <form method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="recreate">
+                    <input type="hidden" name="token_id" value="{{ t.id }}">
+                    <button class="btn btn-small btn-outline" type="submit">
+                      Пересоздать
+                    </button>
+                  </form>
+
+                  <!-- Отозвать -->
+                  {% if not t.revoked_at and t.is_active %}
+                    <form method="post" style="display:inline;">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="revoke">
+                      <input type="hidden" name="token_id" value="{{ t.id }}">
+                      <button class="btn btn-small btn-outline" type="submit">
+                        Отозвать
+                      </button>
+                    </form>
+                  {% endif %}
+
+                  <!-- ✅ Удалить (полное удаление записи токена) -->
+                  <form method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="token_id" value="{{ t.id }}">
+                    <button class="btn btn-small btn-outline"
+                            type="submit"
+                            onclick="return confirm('Удалить токен полностью? Он исчезнет из списка, восстановить нельзя.');">
+                      Удалить
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="8" class="muted">Токенов пока нет.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ===== TTL MODAL ===== -->
+<div id="ttl-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Длительность токена</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="muted">Выставьте срок действия в удобных единицах.</div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+        <label>
+          Секунды:
+          <input type="number" min="0" class="input" id="m_sec" value="0">
+        </label>
+        <label>
+          Минуты:
+          <input type="number" min="0" class="input" id="m_min" value="30">
+        </label>
+        <label>
+          Часы:
+          <input type="number" min="0" class="input" id="m_hour" value="0">
+        </label>
+        <label>
+          Дни:
+          <input type="number" min="0" class="input" id="m_day" value="0">
+        </label>
+        <label style="grid-column:1 / -1;">
+          Недели:
+          <input type="number" min="0" class="input" id="m_week" value="0">
+        </label>
+      </div>
+
+      <div class="all-absent-hint" style="margin-top:12px;">
+        <b>Итого:</b> <span id="m_preview">30 мин</span>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="ttl-cancel">Отмена</button>
+      <button type="button" class="btn btn-primary" id="ttl-apply">Применить</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="{% static 'attendance/js/substitute_tokens.js' %}"></script>
+{% endblock %}

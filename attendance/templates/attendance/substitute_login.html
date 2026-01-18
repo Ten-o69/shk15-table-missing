@@ -1,0 +1,38 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Вход по токену{% endblock %}
+
+{% block content %}
+<div class="card card-narrow">
+  <div class="card-header">
+    <h1>Вход по токену</h1>
+    <p class="card-subtitle">
+      Введите временный код, выданный завучем. Вы войдёте как классный руководитель нужного класса.
+    </p>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label for="id_token">Токен замены</label>
+      <input type="text"
+             name="token"
+             required
+             id="id_token"
+             class="input input-full"
+             placeholder="Например: 3yQ...">
+    </div>
+
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <div class="form-actions" style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+      <a href="{% url 'login' %}" class="btn btn-outline">Обычный вход</a>
+      <button type="submit" class="btn btn-primary">Войти</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
