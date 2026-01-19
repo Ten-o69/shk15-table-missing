@@ -7,125 +7,163 @@
 {% endblock %}
 
 {% block content %}
-<div class="card page-wide">
-  <div class="card-header">
-    <h1>Управление учениками</h1>
-    <p class="card-subtitle">
-      Отмечайте льготников и удаляйте учеников. Удаление — мягкое (ученик становится неактивным, история посещаемости сохраняется).
-    </p>
-  </div>
+<div class="card page-wide shadow-sm">
+  <div class="card-body p-3 p-lg-4">
 
-  <div class="card-section">
+    <div class="d-flex flex-column gap-2 mb-3">
+      <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+        <div>
+          <h1 class="h4 mb-1">Управление учениками</h1>
+          <p class="text-secondary mb-0">
+            Отмечайте льготников и удаляйте учеников. Удаление — мягкое (ученик становится неактивным, история посещаемости сохраняется).
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- ФИЛЬТРЫ (GET) -->
-    <div class="toolbar">
-      <form method="get" class="filters">
-        <label>
-          Поиск (ФИО / класс):
-          <input type="text" name="q" value="{{ q }}" class="input" placeholder="Например: Иванов или 3Б">
-        </label>
+    <div class="card bg-transparent border-0 mb-3 app-panel">
+      <div class="card-body p-3 p-lg-3">
 
-        <label>
-          Класс:
-          <select name="class_id" class="input">
-            <option value="">Все</option>
-            {% for c in classes %}
-              <option value="{{ c.id }}" {% if class_id == c.id|stringformat:"s" %}selected{% endif %}>
-                {{ c.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-lg-8">
+            <form method="get" class="row g-3 align-items-end">
 
-        <label>
-          Сортировка:
-          <select name="sort" class="input">
-            <option value="class_asc"  {% if sort == 'class_asc' %}selected{% endif %}>Класс ↑, ФИО ↑</option>
-            <option value="class_desc" {% if sort == 'class_desc' %}selected{% endif %}>Класс ↓, ФИО ↑</option>
-            <option value="name_asc"   {% if sort == 'name_asc' %}selected{% endif %}>ФИО ↑</option>
-            <option value="name_desc"  {% if sort == 'name_desc' %}selected{% endif %}>ФИО ↓</option>
-          </select>
-        </label>
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="q-input">Поиск (ФИО / класс)</label>
+                <input id="q-input"
+                       type="text"
+                       name="q"
+                       value="{{ q }}"
+                       class="form-control"
+                       placeholder="Например: Иванов или 3Б">
+              </div>
 
-        <label class="inline">
-          <input type="checkbox" name="show_inactive" value="1" {% if show_inactive %}checked{% endif %}>
-          Показать удалённых
-        </label>
+              <div class="col-12 col-md-3">
+                <label class="form-label" for="class-select">Класс</label>
+                <select id="class-select" name="class_id" class="form-select">
+                  <option value="">Все</option>
+                  {% for c in classes %}
+                    <option value="{{ c.id }}" {% if class_id == c.id|stringformat:"s" %}selected{% endif %}>
+                      {{ c.name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
 
-        <button class="btn btn-primary" type="submit">
-          <i class="bi bi-funnel"></i> Применить
-        </button>
-      </form>
+              <div class="col-12 col-md-3">
+                <label class="form-label" for="sort-select">Сортировка</label>
+                <select id="sort-select" name="sort" class="form-select">
+                  <option value="class_asc"  {% if sort == 'class_asc' %}selected{% endif %}>Класс ↑, ФИО ↑</option>
+                  <option value="class_desc" {% if sort == 'class_desc' %}selected{% endif %}>Класс ↓, ФИО ↑</option>
+                  <option value="name_asc"   {% if sort == 'name_asc' %}selected{% endif %}>ФИО ↑</option>
+                  <option value="name_desc"  {% if sort == 'name_desc' %}selected{% endif %}>ФИО ↓</option>
+                </select>
+              </div>
 
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-        <label style="display:flex; flex-direction:column; gap:6px;">
-          Быстрый фильтр на странице:
-          <input id="client-search" type="text" class="input" placeholder="Фильтр без перезагрузки">
-        </label>
+              <div class="col-12 col-md-6 d-flex align-items-center gap-2">
+                <div class="form-check">
+                  <input class="form-check-input"
+                         type="checkbox"
+                         id="show-inactive"
+                         name="show_inactive"
+                         value="1"
+                         {% if show_inactive %}checked{% endif %}>
+                  <label class="form-check-label" for="show-inactive">
+                    Показать удалённых
+                  </label>
+                </div>
+              </div>
 
-        <span class="counter-pill muted-small" title="Количество строк, видимых на странице">
-          <i class="bi bi-people"></i>
-          Видимых: <span id="visible-count">0</span>
-        </span>
+              <div class="col-12 col-md-6 d-flex justify-content-md-end">
+                <button class="btn btn-primary w-100 w-md-auto" type="submit">
+                  <i class="bi bi-funnel me-1"></i> Применить
+                </button>
+              </div>
+
+            </form>
+          </div>
+
+          <!-- Быстрый фильтр (клиентский) -->
+          <div class="col-12 col-lg-4">
+            <label class="form-label" for="client-search">Быстрый фильтр на странице</label>
+            <div class="d-flex flex-column flex-sm-row gap-2 align-items-sm-center">
+              <input id="client-search"
+                     type="text"
+                     class="form-control"
+                     placeholder="Фильтр без перезагрузки">
+              <span class="badge rounded-pill text-bg-secondary-subtle app-counter-pill"
+                    title="Количество строк, видимых на странице">
+                <i class="bi bi-people me-1"></i>
+                Видимых: <span id="visible-count">0</span>
+              </span>
+            </div>
+            <div class="form-text">Ищет по ФИО / классу / типу льготы.</div>
+          </div>
+        </div>
+
       </div>
     </div>
 
     <!-- BULK (POST) -->
-    <form method="post" id="bulk-form">
+    <form method="post" id="bulk-form" class="mb-3">
       {% csrf_token %}
 
-      <div class="actions-bar">
-        <div class="actions-left">
-          <button type="button" class="btn btn-outline" id="check-all">
-            <i class="bi bi-check2-square"></i> Выбрать всё
-          </button>
-          <button type="button" class="btn btn-outline" id="uncheck-all">
-            <i class="bi bi-square"></i> Снять выбор
-          </button>
+        <div class="d-flex flex-column flex-lg-row flex-wrap gap-2 align-items-lg-center justify-content-between p-3 rounded-4 bg-transparent app-panel">
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <button type="button" class="btn btn-outline-light btn-sm" id="check-all">
+              <i class="bi bi-check2-square me-1"></i> Выбрать всё
+            </button>
+            <button type="button" class="btn btn-outline-light btn-sm" id="uncheck-all">
+              <i class="bi bi-square me-1"></i> Снять выбор
+            </button>
 
-          <span class="counter-pill muted-small">
-            <i class="bi bi-check-circle"></i>
-            Выбрано: <span id="selected-count">0</span>
-          </span>
+            <span class="badge rounded-pill text-bg-secondary-subtle app-counter-pill">
+              <i class="bi bi-check-circle me-1"></i>
+              Выбрано: <span id="selected-count">0</span>
+            </span>
+          </div>
+
+          <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 align-items-stretch align-items-sm-center ms-lg-auto">
+            <div class="flex-grow-1" style="min-width: min(320px, 100%);">
+              <select name="action" class="form-select form-select-sm" required>
+                <option value="">— Действие —</option>
+
+                <option value="priv_svo">Назначить: СВО</option>
+                <option value="priv_multi">Назначить: Многодетные</option>
+                <option value="priv_low_income">Назначить: Малоимущие</option>
+                <option value="priv_disabled">Назначить: Инвалиды</option>
+                <option value="priv_off">Снять льготу</option>
+
+                <option value="delete">Удалить (деактивировать)</option>
+                <option value="restore">Восстановить (активировать)</option>
+              </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-sm flex-shrink-0 w-100 w-sm-auto">
+              <i class="bi bi-play-fill me-1"></i> Выполнить
+            </button>
+          </div>
         </div>
-
-        <div class="actions-right">
-          <select name="action" class="input" required>
-            <option value="">— Действие —</option>
-
-            <option value="priv_svo">Назначить: СВО</option>
-            <option value="priv_multi">Назначить: Многодетные</option>
-            <option value="priv_low_income">Назначить: Малоимущие</option>
-            <option value="priv_disabled">Назначить: Инвалиды</option>
-            <option value="priv_off">Снять льготу</option>
-
-            <option value="delete">Удалить (деактивировать)</option>
-            <option value="restore">Восстановить (активировать)</option>
-          </select>
-
-          <button type="submit" class="btn btn-primary">
-            <i class="bi bi-play-fill"></i> Выполнить
-          </button>
-        </div>
-      </div>
     </form>
 
-    <!-- ✅ Таблица учеников -->
-    <div class="table-wrapper" id="students-grid">
-      <table class="table table-main manage-table">
+    <!-- Таблица -->
+    <div class="table-responsive app-table-responsive" id="students-grid">
+      <table class="table table-dark table-striped table-hover align-middle mb-0 manage-table">
         <thead>
           <tr>
-            <th style="width:90px;">Выбор</th>
-            <th style="width:110px;">Класс</th>
+            <th style="width:120px;">Выбор</th>
+            <th style="width:120px;">Класс</th>
             <th>Ученик</th>
             <th style="min-width:220px;">Статусы</th>
-            <th style="min-width:240px;">Льгота (тип)</th>
-            <th style="width:180px;">Действия</th>
+            <th style="min-width:260px;">Льгота (тип)</th>
+            <th style="width:210px;">Действия</th>
           </tr>
         </thead>
 
         <tbody>
           {% for s in students %}
-            <tr class="student-row student-card {% if not s.is_active %}is-inactive{% endif %}"
+            <tr class="student-row {% if not s.is_active %}is-inactive{% endif %}"
                 data-class="{{ s.class_room.name|lower }}"
                 data-name="{{ s.full_name|lower }}"
                 data-active="{{ s.is_active|yesno:'1,0' }}"
@@ -133,90 +171,93 @@
 
               <!-- Выбор -->
               <td>
-                <label class="pick" title="Выбрать для массового действия" style="display:flex; gap:8px; align-items:center;">
-                  <input type="checkbox"
-                         class="student-check"
+                <div class="form-check d-flex align-items-center gap-2">
+                  <input class="form-check-input student-check"
+                         type="checkbox"
                          name="student_ids"
                          value="{{ s.id }}"
-                         form="bulk-form">
-                  <span class="muted-small">выбрать</span>
-                </label>
+                         form="bulk-form"
+                         id="pick-{{ s.id }}">
+                  <label class="form-check-label text-secondary small" for="pick-{{ s.id }}">
+                    выбрать
+                  </label>
+                </div>
               </td>
 
               <!-- Класс -->
               <td>
-                <span class="badge" title="Класс">
-                  <i class="bi bi-mortarboard"></i>
+                <span class="badge rounded-pill text-bg-primary">
+                  <i class="bi bi-mortarboard me-1"></i>
                   <strong>{{ s.class_room.name }}</strong>
                 </span>
               </td>
 
               <!-- ФИО -->
               <td>
-                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                  <span class="muted-small"><i class="bi bi-person"></i></span>
-                  <span class="text-bold">{{ s.full_name }}</span>
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+                  <span class="text-secondary"><i class="bi bi-person"></i></span>
+                  <span class="fw-semibold">{{ s.full_name }}</span>
                 </div>
               </td>
 
               <!-- Статусы -->
               <td>
-                <div class="head-badges" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <div class="d-flex gap-2 flex-wrap align-items-center">
                   {% if s.is_active %}
-                    <span class="badge badge-success" title="Ученик активен">
-                      <i class="bi bi-check-circle"></i> Активен
+                    <span class="badge rounded-pill text-bg-success" title="Ученик активен">
+                      <i class="bi bi-check-circle me-1"></i> Активен
                     </span>
                   {% else %}
-                    <span class="badge badge-danger" title="Ученик удалён (неактивен)">
-                      <i class="bi bi-x-circle"></i> Удалён
+                    <span class="badge rounded-pill text-bg-danger" title="Ученик удалён (неактивен)">
+                      <i class="bi bi-x-circle me-1"></i> Удалён
                     </span>
                   {% endif %}
 
                   {% if s.privilege_type %}
-                    <span class="badge badge-warn" title="Льготник">
-                      <i class="bi bi-star-fill"></i> Льготник
+                    <span class="badge rounded-pill text-bg-warning" title="Льготник">
+                      <i class="bi bi-star-fill me-1"></i> Льготник
                     </span>
                   {% endif %}
                 </div>
               </td>
 
-              <!-- Льгота: тип + модалка -->
+              <!-- Льгота -->
               <td>
-                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <div class="d-flex gap-2 flex-wrap align-items-center">
                   {% if s.privilege_type %}
-                    <span class="badge badge-warn">
-                      <i class="bi bi-bookmark-star"></i> {{ s.get_privilege_type_display }}
+                    <span class="badge rounded-pill text-bg-warning">
+                      <i class="bi bi-bookmark-star me-1"></i> {{ s.get_privilege_type_display }}
                     </span>
                   {% else %}
-                    <span class="muted">Не задано</span>
+                    <span class="text-secondary">Не задано</span>
                   {% endif %}
 
                   <button type="button"
-                          class="btn btn-small btn-outline js-open-priv-type"
+                          class="btn btn-sm btn-outline-info js-open-priv-type"
                           data-student-id="{{ s.id }}"
                           data-student-name="{{ s.full_name }}"
                           data-current-type="{{ s.privilege_type|default:'' }}">
-                    Изменить
+                    <i class="bi bi-pencil-square me-1"></i> Изменить
                   </button>
                 </div>
               </td>
 
               <!-- Действия -->
               <td>
-                <div class="btn-row" style="display:flex; gap:8px; flex-wrap:wrap;">
+                <div class="d-flex gap-2 flex-wrap">
                   {% if s.is_active %}
                     <button type="button"
-                            class="btn btn-small btn-outline js-one-action"
+                            class="btn btn-sm btn-outline-light js-one-action"
                             data-action="delete"
                             data-student-id="{{ s.id }}">
-                      <i class="bi bi-trash"></i> Удалить
+                      <i class="bi bi-trash me-1"></i> Удалить
                     </button>
                   {% else %}
                     <button type="button"
-                            class="btn btn-small btn-outline js-one-action"
+                            class="btn btn-sm btn-outline-light js-one-action"
                             data-action="restore"
                             data-student-id="{{ s.id }}">
-                      <i class="bi bi-arrow-counterclockwise"></i> Восстановить
+                      <i class="bi bi-arrow-counterclockwise me-1"></i> Восстановить
                     </button>
                   {% endif %}
                 </div>
@@ -225,7 +266,7 @@
             </tr>
           {% empty %}
             <tr>
-              <td colspan="6" class="text-center muted">Ученики не найдены</td>
+              <td colspan="6" class="text-center text-secondary py-4">Ученики не найдены</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -239,7 +280,7 @@
       <input type="hidden" name="student_ids" id="one-action-id">
     </form>
 
-    <!-- ✅ hidden form для установки типа льготы -->
+    <!-- hidden form для установки типа льготы -->
     <form method="post" id="priv-type-form" style="display:none;">
       {% csrf_token %}
       <input type="hidden" name="action" value="set_privilege_type">
@@ -247,45 +288,62 @@
       <input type="hidden" name="privilege_type" id="priv-type-value">
     </form>
 
-    <!-- ✅ модалка выбора типа льготы -->
-    <div id="priv-type-modal" class="modal-overlay hidden">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>Тип льготы</h2>
-          <div id="priv-type-subtitle" class="muted modal-subtitle"></div>
-        </div>
+    <!-- Bootstrap modal выбора типа льготы (IDs сохранены для JS) -->
+    <div class="modal fade" id="priv-type-modal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-md">
+        <div class="modal-content bg-dark border border-secondary-subtle">
+          <div class="modal-header">
+            <div class="d-flex flex-column gap-1">
+              <h2 class="h6 mb-0">Тип льготы</h2>
+              <div id="priv-type-subtitle" class="text-secondary small"></div>
+            </div>
 
-        <div class="modal-body">
-          <div id="priv-type-list" class="students-list" style="max-height: 320px;">
-            <label class="student-row">
-              <input type="radio" name="priv_type" value="svo">
-              <span>СВО</span>
-            </label>
-            <label class="student-row">
-              <input type="radio" name="priv_type" value="multi">
-              <span>Многодетные</span>
-            </label>
-            <label class="student-row">
-              <input type="radio" name="priv_type" value="low_income">
-              <span>Малоимущие</span>
-            </label>
-            <label class="student-row">
-              <input type="radio" name="priv_type" value="disabled">
-              <span>Инвалиды</span>
-            </label>
+            <button type="button"
+                    class="btn-close btn-close-white"
+                    data-bs-dismiss="modal"
+                    aria-label="Закрыть"></button>
           </div>
 
-          <div class="muted" style="margin-top:10px;">
-            Выберите тип и нажмите «Сохранить». Чтобы полностью снять льготу — «Снять льготу».
-          </div>
-        </div>
+          <div class="modal-body">
+            <div id="priv-type-list" class="vstack gap-2">
+              <label class="priv-type-row">
+                <input type="radio" name="priv_type" value="svo">
+                <span>СВО</span>
+              </label>
+              <label class="priv-type-row">
+                <input type="radio" name="priv_type" value="multi">
+                <span>Многодетные</span>
+              </label>
+              <label class="priv-type-row">
+                <input type="radio" name="priv_type" value="low_income">
+                <span>Малоимущие</span>
+              </label>
+              <label class="priv-type-row">
+                <input type="radio" name="priv_type" value="disabled">
+                <span>Инвалиды</span>
+              </label>
+            </div>
 
-        <div class="modal-footer" style="justify-content: space-between;">
-          <button type="button" id="priv-type-clear" class="btn btn-outline">Снять льготу</button>
-          <div style="display:flex; gap:8px;">
-            <button type="button" id="priv-type-cancel" class="btn btn-outline">Отмена</button>
-            <button type="button" id="priv-type-apply" class="btn btn-primary">Сохранить</button>
+            <div class="text-secondary small mt-3">
+              Выберите тип и нажмите «Сохранить». Чтобы полностью снять льготу — «Снять льготу».
+            </div>
           </div>
+
+          <div class="modal-footer d-flex justify-content-between">
+            <button type="button" id="priv-type-clear" class="btn btn-outline-warning">
+              <i class="bi bi-x-circle me-1"></i> Снять льготу
+            </button>
+
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">
+                Отмена
+              </button>
+              <button type="button" id="priv-type-apply" class="btn btn-primary">
+                <i class="bi bi-check2 me-1"></i> Сохранить
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -293,5 +351,7 @@
   </div>
 </div>
 
-<script src="{% static 'attendance/js/manage_students.js' %}"></script>
+{% block script %}
+  <script src="{% static 'attendance/js/manage_students.js' %}"></script>
+{% endblock %}
 {% endblock %}

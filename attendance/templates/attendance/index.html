@@ -22,8 +22,7 @@
                 </p>
             </div>
 
-            <!-- Поиск по классу -->
-            <div class="ms-lg-auto" style="min-width: min(420px, 100%);">
+            <div class="ms-lg-auto main-search">
                 <label class="form-label mb-1" for="main-table-search">
                     <i class="bi bi-search me-1"></i> Поиск по классу
                 </label>
@@ -41,7 +40,6 @@
             </h2>
         </div>
 
-        <!-- Итоги -->
         <div class="summary-bar mb-3">
             <div class="summary-item">
                 <span class="summary-label">По списку</span>
@@ -74,9 +72,8 @@
             <input type="hidden" name="row_count" value="{{ classes|length }}">
             <input type="hidden" name="edit_class" value="{{ edit_class_id|default:'' }}">
 
-            <!-- Основная таблица -->
             <div class="table-responsive app-table-responsive">
-                <table class="table table-dark table-striped table-hover align-middle mb-0 table-main">
+                <table class="table table-dark table-striped table-hover align-middle mb-0 table-main table-stack">
                     <thead>
                     <tr>
                         <th class="text-nowrap">Класс</th>
@@ -108,7 +105,7 @@
                             data-class-id="{{ class.id }}"
                             data-total-students="{% if summary %}{{ summary.present_count_auto }}{% else %}{{ class.student_count|default:'0' }}{% endif %}">
 
-                            <td class="fw-semibold">
+                            <td class="fw-semibold stack-head-cell" data-label="Класс">
                                 <div class="d-flex flex-column gap-1">
                                     <div class="d-flex align-items-center gap-2 flex-wrap">
                                         <span class="badge rounded-pill text-bg-primary">{{ class.name }}</span>
@@ -145,7 +142,7 @@
                                 </div>
                             </td>
 
-                            <td>
+                            <td data-label="По списку">
                                 {% if summary and edit_class_id != class.id %}
                                     <span>{{ summary.present_count_auto }}</span>
                                 {% else %}
@@ -161,8 +158,7 @@
                                 {% endif %}
                             </td>
 
-                            <!-- НЕУВАЖИТЕЛЬНЫЕ: ЧИСЛО -->
-                            <td>
+                            <td data-label="Неуважительные">
                                 {% if summary and edit_class_id != class.id %}
                                     <span>{{ summary.unexcused_absent_count }}</span>
                                 {% else %}
@@ -176,8 +172,7 @@
                                 {% endif %}
                             </td>
 
-                            <!-- НЕУВАЖИТЕЛЬНЫЕ: СПИСОК -->
-                            <td>
+                            <td data-label="Ученики (неуваж.)">
                                 {% if summary and edit_class_id != class.id %}
                                     {% if summary.absent_students.all %}
                                         <ul class="pill-list">
@@ -223,8 +218,7 @@
                                 {% endif %}
                             </td>
 
-                            <!-- ОРВИ: ЧИСЛО -->
-                            <td>
+                            <td data-label="ОРВИ">
                                 {% if summary and edit_class_id != class.id %}
                                     <span>{{ summary.orvi_count }}</span>
                                 {% else %}
@@ -238,8 +232,7 @@
                                 {% endif %}
                             </td>
 
-                            <!-- ОРВИ: СПИСОК -->
-                            <td>
+                            <td data-label="Ученики (ОРВИ)">
                                 {% if summary and edit_class_id != class.id %}
                                     {% if summary.absent_students.all %}
                                         <ul class="pill-list">
@@ -285,8 +278,7 @@
                                 {% endif %}
                             </td>
 
-                            <!-- ДРУГИЕ: ЧИСЛО -->
-                            <td>
+                            <td data-label="Другие">
                                 {% if summary and edit_class_id != class.id %}
                                     <span>{{ summary.other_disease_count }}</span>
                                 {% else %}
@@ -300,8 +292,7 @@
                                 {% endif %}
                             </td>
 
-                            <!-- ДРУГИЕ: СПИСОК -->
-                            <td>
+                            <td data-label="Ученики (другие)">
                                 {% if summary and edit_class_id != class.id %}
                                     {% if summary.absent_students.all %}
                                         <ul class="pill-list">
@@ -347,8 +338,7 @@
                                 {% endif %}
                             </td>
 
-                            <!-- СЕМЕЙНЫЕ: ЧИСЛО -->
-                            <td>
+                            <td data-label="Семейные">
                                 {% if summary and edit_class_id != class.id %}
                                     <span>{{ summary.family_reason_count }}</span>
                                 {% else %}
@@ -362,8 +352,7 @@
                                 {% endif %}
                             </td>
 
-                            <!-- СЕМЕЙНЫЕ: СПИСОК -->
-                            <td>
+                            <td data-label="Ученики (сем.)">
                                 {% if summary and edit_class_id != class.id %}
                                     {% if summary.absent_students.all %}
                                         <ul class="pill-list">
@@ -409,8 +398,7 @@
                                 {% endif %}
                             </td>
 
-                            <!-- ВСЕ ОТСУТСТВУЮЩИЕ -->
-                            <td>
+                            <td data-label="Все отсутствующие">
                                 {% if summary and edit_class_id != class.id %}
                                     {% if summary.absent_students.all %}
                                         <ul class="pill-list">
@@ -452,8 +440,7 @@
                                 {% endif %}
                             </td>
 
-                            <!-- ПРИШЛО ПО ФАКТУ -->
-                            <td>
+                            <td data-label="Пришло по факту">
                                 {% if summary and edit_class_id != class.id %}
                                     <span>{{ summary.present_count_reported }}</span>
                                 {% else %}
@@ -497,7 +484,6 @@
             {% endif %}
         </form>
 
-        <!-- Нижняя таблица: льготники -->
         <hr class="my-4 border-secondary-subtle">
 
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
@@ -518,7 +504,7 @@
         </div>
 
         <div class="table-responsive app-table-responsive">
-            <table class="table table-dark table-striped table-hover align-middle mb-0 table-main priv-table">
+            <table class="table table-dark table-striped table-hover align-middle mb-0 table-main priv-table table-stack">
                 <thead>
                 <tr>
                     <th class="text-nowrap">Класс</th>
@@ -531,12 +517,12 @@
                 {% for class in classes %}
                     {% with pt=privileged_total_by_class|dict_get:class.id pp=privileged_present_count_by_class|dict_get:class.id %}
                         <tr>
-                            <td class="fw-semibold">
+                            <td class="fw-semibold stack-head-cell" data-label="Класс">
                                 <span class="badge rounded-pill text-bg-primary">{{ class.name }}</span>
                             </td>
-                            <td><span>{{ pt|default:"0" }}</span></td>
-                            <td><span>{{ pp|default:"0" }}</span></td>
-                            <td>
+                            <td data-label="Льготников в системе"><span>{{ pt|default:"0" }}</span></td>
+                            <td data-label="Сейчас в школе"><span>{{ pp|default:"0" }}</span></td>
+                            <td data-label="Список">
                                 <button type="button"
                                         class="btn btn-sm btn-outline-info open-privileged-modal-btn"
                                         data-class-id="{{ class.id }}"
@@ -555,7 +541,6 @@
             </table>
         </div>
 
-        {# Скрытые контейнеры со списками учеников по классам для модального окна #}
         {% for class in classes %}
             <div id="students-container-{{ class.id }}" class="hidden-students-container">
                 {% with students=students_by_class|dict_get:class.id %}
@@ -570,7 +555,6 @@
             </div>
         {% endfor %}
 
-        {# Скрытые контейнеры: присутствующие льготники по классам (для read-only модалки) #}
         {% for class in classes %}
             <div id="privileged-present-container-{{ class.id }}" class="hidden-students-container" style="display:none;">
                 {% with plist=privileged_present_by_class|dict_get:class.id %}
@@ -583,9 +567,9 @@
             </div>
         {% endfor %}
 
-        {# Модальное окно выбора учеников (Bootstrap modal, IDs сохранены для JS) #}
+        <!-- Students modal -->
         <div class="modal fade" id="students-modal" tabindex="-1" aria-hidden="true">
-          <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-sm-down">
+          <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg app-modal-sheet app-modal-sheet-lg">
             <div class="modal-content bg-dark border border-secondary-subtle">
               <div class="modal-header">
                 <h2 class="h6 mb-0">
@@ -625,9 +609,9 @@
           </div>
         </div>
 
-        {# Read-only модалка льготников (Bootstrap modal, IDs сохранены для JS) #}
+        <!-- Privileged modal -->
         <div class="modal fade" id="privileged-modal" tabindex="-1" aria-hidden="true">
-          <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-sm-down">
+          <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg app-modal-sheet">
             <div class="modal-content bg-dark border border-secondary-subtle">
               <div class="modal-header">
                 <div class="d-flex flex-column gap-1">

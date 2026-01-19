@@ -7,35 +7,73 @@
 {% endblock %}
 
 {% block content %}
-<div class="card card-narrow">
-  <div class="card-header">
-    <h1>Вход по токену</h1>
-    <p class="card-subtitle">
-      Введите временный код, выданный завучем. Вы войдёте как классный руководитель нужного класса.
-    </p>
+<div class="container py-4 py-lg-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+
+      <div class="card card-narrow login-card shadow-sm">
+        <div class="card-body p-3 p-sm-4 p-lg-4">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="login-icon flex-shrink-0">
+              <i class="bi bi-key-fill"></i>
+            </div>
+            <div class="min-w-0">
+              <h1 class="h4 mb-1">Вход по токену</h1>
+              <p class="text-secondary mb-0">
+                Введите временный код, выданный завучем. Вы войдёте как классный руководитель нужного класса.
+              </p>
+            </div>
+          </div>
+
+          <form method="post" class="mt-3">
+            {% csrf_token %}
+
+            <div class="mb-3">
+              <label for="id_token" class="form-label">Токен замены</label>
+              <div class="input-group">
+                <span class="input-group-text">
+                  <i class="bi bi-shield-lock"></i>
+                </span>
+                <input type="text"
+                       name="token"
+                       required
+                       id="id_token"
+                       class="form-control"
+                       placeholder="Например: 3yQ..."
+                       autocomplete="one-time-code"
+                       autocapitalize="off"
+                       spellcheck="false">
+              </div>
+              <div class="form-text">
+                Токен действует ограниченное время. Вводите без пробелов.
+              </div>
+            </div>
+
+            {% if error %}
+              <div class="alert alert-danger mb-3" role="alert">
+                <i class="bi bi-exclamation-triangle me-1"></i> {{ error }}
+              </div>
+            {% endif %}
+
+            <div class="d-flex flex-column flex-sm-row gap-2 justify-content-end mt-4">
+              <a href="{% url 'login' %}" class="btn btn-outline-light">
+                <i class="bi bi-person me-1"></i> Обычный вход
+              </a>
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-box-arrow-in-right me-1"></i> Войти
+              </button>
+            </div>
+          </form>
+
+          <hr class="my-4 opacity-25">
+
+          <div class="login-help small text-secondary">
+            Если токен не подходит — попросите завуча выдать новый или проверьте, не истёк ли срок действия.
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
-
-  <form method="post">
-    {% csrf_token %}
-
-    <div class="form-group">
-      <label for="id_token">Токен замены</label>
-      <input type="text"
-             name="token"
-             required
-             id="id_token"
-             class="input input-full"
-             placeholder="Например: 3yQ...">
-    </div>
-
-    {% if error %}
-      <div class="alert alert-danger">{{ error }}</div>
-    {% endif %}
-
-    <div class="form-actions" style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
-      <a href="{% url 'login' %}" class="btn btn-outline">Обычный вход</a>
-      <button type="submit" class="btn btn-primary">Войти</button>
-    </div>
-  </form>
 </div>
 {% endblock %}

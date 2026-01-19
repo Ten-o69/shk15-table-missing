@@ -1,6 +1,5 @@
 (() => {
-  // --- modal elements ---
-  const modal = document.getElementById('ttl-modal');
+  const modalEl = document.getElementById('ttl-modal');
   const openBtn = document.getElementById('open-ttl-modal');
   const cancelBtn = document.getElementById('ttl-cancel');
   const applyBtn = document.getElementById('ttl-apply');
@@ -41,34 +40,62 @@
 
   function updatePreview(){
     const sec = n(mSec.value), min=n(mMin.value), hour=n(mHour.value), day=n(mDay.value), week=n(mWeek.value);
-    mPreview.textContent = human(sec,min,hour,day,week);
+    if (mPreview) mPreview.textContent = human(sec,min,hour,day,week);
   }
 
-  [mSec,mMin,mHour,mDay,mWeek].forEach(inp => inp.addEventListener('input', updatePreview));
+  [mSec,mMin,mHour,mDay,mWeek].forEach(inp => inp && inp.addEventListener('input', updatePreview));
+
+  // Bootstrap modal instance (if Bootstrap loaded)
+  let bsModal = null;
+  if (modalEl && window.bootstrap && typeof window.bootstrap.Modal === 'function') {
+    bsModal = window.bootstrap.Modal.getOrCreateInstance(modalEl, {
+      backdrop: true,
+      keyboard: true,
+      focus: true
+    });
+  }
 
   function open(){
     // подхватываем текущие hidden значения
-    mSec.value  = hSec.value  || 0;
-    mMin.value  = hMin.value  || 0;
-    mHour.value = hHour.value || 0;
-    mDay.value  = hDay.value  || 0;
-    mWeek.value = hWeek.value || 0;
+    if (mSec)  mSec.value  = hSec.value  || 0;
+    if (mMin)  mMin.value  = hMin.value  || 0;
+    if (mHour) mHour.value = hHour.value || 0;
+    if (mDay)  mDay.value  = hDay.value  || 0;
+    if (mWeek) mWeek.value = hWeek.value || 0;
+
     updatePreview();
-    modal.classList.remove('hidden');
+
+    if (bsModal) {
+      bsModal.show();
+    } else if (modalEl) {
+      // fallback: если вдруг bootstrap modal не подключен
+      modalEl.classList.add('show');
+      modalEl.style.display = 'block';
+      modalEl.removeAttribute('aria-hidden');
+      document.body.classList.add('modal-open');
+    }
+
+    // фокус в первое поле для скорости
+    setTimeout(() => { if (mMin) mMin.focus(); }, 50);
   }
+
   function close(){
-    modal.classList.add('hidden');
+    if (bsModal) {
+      bsModal.hide();
+    } else if (modalEl) {
+      modalEl.classList.remove('show');
+      modalEl.style.display = 'none';
+      modalEl.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+    }
   }
 
   if (openBtn) openBtn.addEventListener('click', open);
   if (cancelBtn) cancelBtn.addEventListener('click', close);
 
-  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
-  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && !modal.classList.contains('hidden')) close(); });
-
   if (applyBtn) {
     applyBtn.addEventListener('click', () => {
-      const sec = n(mSec.value), min=n(mMin.value), hour=n(mHour.value), day=n(mDay.value), week=n(mWeek.value);
+      const sec = n(mSec && mSec.value), min=n(mMin && mMin.value), hour=n(mHour && mHour.value), day=n(mDay && mDay.value), week=n(mWeek && mWeek.value);
       const ttl = totalSeconds(sec,min,hour,day,week);
 
       if (ttl < 30) {
@@ -81,7 +108,11 @@
       }
 
       // записали hidden поля
-      hSec.value = sec; hMin.value=min; hHour.value=hour; hDay.value=day; hWeek.value=week;
+      if (hSec)  hSec.value  = sec;
+      if (hMin)  hMin.value  = min;
+      if (hHour) hHour.value = hour;
+      if (hDay)  hDay.value  = day;
+      if (hWeek) hWeek.value = week;
 
       // красивый preview на форме
       if (ttlPreview) ttlPreview.textContent = human(sec,min,hour,day,week);
@@ -91,7 +122,7 @@
   }
 
   // init preview at page load
-  if (ttlPreview) {
+  if (ttlPreview && hSec && hMin && hHour && hDay && hWeek) {
     const sec = n(hSec.value), min=n(hMin.value), hour=n(hHour.value), day=n(hDay.value), week=n(hWeek.value);
     ttlPreview.textContent = human(sec,min,hour,day,week);
   }
@@ -101,6 +132,15 @@
   const tokenText = document.getElementById('token-text');
   const status = document.getElementById('copy-status');
 
+  function setStatus(msg, ok = true) {
+    if (!status) return;
+    status.classList.remove('d-none');
+    status.textContent = msg;
+    status.style.display = ''; // for compatibility with previous inline style usage
+    status.classList.toggle('text-success', ok);
+    status.classList.toggle('text-danger', !ok);
+  }
+
   if (copyBtn && tokenText) {
     copyBtn.addEventListener('click', async () => {
       const txt = (tokenText.textContent || '').trim();
@@ -108,25 +148,21 @@
 
       try {
         await navigator.clipboard.writeText(txt);
-        if (status) {
-          status.style.display = 'block';
-          status.textContent = 'Скопировано в буфер обмена ✅';
-        }
+        setStatus('Скопировано в буфер обмена ✅', true);
       } catch (e) {
         // fallback
-        const ta = document.createElement('textarea');
-        ta.value = txt;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-
-        if (status) {
-          status.style.display = 'block';
-          status.textContent = 'Скопировано ✅';
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = txt;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          setStatus('Скопировано ✅', true);
+        } catch (e2) {
+          setStatus('Не удалось скопировать. Скопируйте вручную.', false);
         }
       }
     });
   }
-
 })();

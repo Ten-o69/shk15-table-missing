@@ -2,16 +2,11 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  // ---------------------------------
-  // Bulk select counters + visible rows
-  // ---------------------------------
   const tableWrap = $("#students-grid");
   if (!tableWrap) return;
 
   const rows = () => $$("tbody tr.student-row", tableWrap);
-
-  const visibleRows = () =>
-    rows().filter(r => r.style.display !== "none");
+  const visibleRows = () => rows().filter(r => r.style.display !== "none");
 
   const updateVisibleCount = () => {
     const el = $("#visible-count");
@@ -26,7 +21,9 @@
     el.textContent = String(checked);
   };
 
+  // ---------------------------------
   // check all / uncheck all (только видимые)
+  // ---------------------------------
   const checkAllBtn = $("#check-all");
   const uncheckAllBtn = $("#uncheck-all");
 
@@ -50,7 +47,6 @@
     });
   }
 
-  // live update selection
   tableWrap.addEventListener("change", (e) => {
     if (e.target && e.target.classList.contains("student-check")) {
       updateSelectedCount();
@@ -79,7 +75,7 @@
   }
 
   // ---------------------------------
-  // One-action delete/restore
+  // One-action delete/restore (как было)
   // ---------------------------------
   const oneForm = $("#one-action-form");
   const oneType = $("#one-action-type");
@@ -101,12 +97,11 @@
   });
 
   // ---------------------------------
-  // Privilege type modal
+  // Privilege type modal (Bootstrap)
   // ---------------------------------
-  const modal = $("#priv-type-modal");
+  const modalEl = $("#priv-type-modal");
   const subtitle = $("#priv-type-subtitle");
   const applyBtn = $("#priv-type-apply");
-  const cancelBtn = $("#priv-type-cancel");
   const clearBtn = $("#priv-type-clear");
 
   const form = $("#priv-type-form");
@@ -114,6 +109,26 @@
   const formValue = $("#priv-type-value");
 
   let currentStudentId = null;
+
+  const hasBootstrap = () =>
+    typeof window !== "undefined" && window.bootstrap && window.bootstrap.Modal;
+
+  if (!modalEl || !hasBootstrap()) {
+    // Если вдруг Bootstrap JS не подхватился — просто не ломаем страницу.
+    updateVisibleCount();
+    updateSelectedCount();
+    return;
+  }
+
+  const BS = window.bootstrap;
+  const getModalInstance = () =>
+    BS.Modal.getInstance(modalEl) || new BS.Modal(modalEl, {
+      backdrop: false,
+      keyboard: true,
+      focus: true
+    });
+
+  const bsModal = getModalInstance();
 
   const openModal = (studentId, studentName, currentType) => {
     currentStudentId = String(studentId || "");
@@ -124,19 +139,13 @@
     }
 
     // reset + set current
-    $$('input[name="priv_type"]', modal).forEach(r => (r.checked = false));
+    $$('input[name="priv_type"]', modalEl).forEach(r => (r.checked = false));
     if (currentType) {
-      const radio = $(`input[name="priv_type"][value="${currentType}"]`, modal);
+      const radio = $(`input[name="priv_type"][value="${currentType}"]`, modalEl);
       if (radio) radio.checked = true;
     }
 
-    modal.classList.remove("hidden");
-  };
-
-  const closeModal = () => {
-    if (!modal) return;
-    modal.classList.add("hidden");
-    currentStudentId = null;
+    bsModal.show();
   };
 
   // open buttons
@@ -157,7 +166,7 @@
       if (!form || !formStudentId || !formValue) return;
       if (!currentStudentId) return;
 
-      const selected = $('input[name="priv_type"]:checked', modal);
+      const selected = $('input[name="priv_type"]:checked', modalEl);
       if (!selected) {
         alert("Выберите тип льготы или нажмите «Снять льготу».");
         return;
@@ -181,19 +190,11 @@
     });
   }
 
-  // cancel / overlay / escape
-  if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
-
-  if (modal) {
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) closeModal();
-    });
-  }
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && modal && !modal.classList.contains("hidden")) {
-      closeModal();
-    }
+  // reset state on close
+  modalEl.addEventListener("hidden.bs.modal", () => {
+    currentStudentId = null;
+    if (subtitle) subtitle.textContent = "";
+    $$('input[name="priv_type"]', modalEl).forEach(r => (r.checked = false));
   });
 
   // initial counters

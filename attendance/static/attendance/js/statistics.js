@@ -1,103 +1,122 @@
-// сворачивание/разворачивание блоков
-(function () {
-    document.querySelectorAll('.collapse-toggle').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            const targetId = this.dataset.targetId;
-            const target = document.getElementById(targetId);
-            if (!target) return;
-            const collapsed = target.classList.toggle('collapsed');
-            this.textContent = collapsed ? 'Развернуть' : 'Свернуть';
-        });
-    });
-})();
+(() => {
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-function textMatches(el, needle) {
+  function textMatches(el, needle) {
     if (!needle) return true;
-    const txt = (el.textContent || '').toLowerCase();
+    const txt = (el.textContent || "").toLowerCase();
     return txt.includes(needle.toLowerCase());
-}
+  }
 
-(function () {
-    const globalInput = document.getElementById('global-search');
-    const classInput = document.getElementById('filter-class');
-    const studentInput = document.getElementById('filter-student');
-    const minUnexcusedInput = document.getElementById('filter-min-unexcused');
-    const minAbsencesInput = document.getElementById('filter-min-absences');
-    const typeSelect = document.getElementById('filter-table-type');
+  function debounce(fn, wait = 150) {
+    let t = null;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), wait);
+    };
+  }
+
+  (function initFilters() {
+    const globalInput = $("#global-search");
+    const classInput = $("#filter-class");
+    const studentInput = $("#filter-student");
+    const minUnexcusedInput = $("#filter-min-unexcused");
+    const minAbsencesInput = $("#filter-min-absences");
+    const typeSelect = $("#filter-table-type");
+    const resetBtn = $("#reset-filters");
+
+    if (!globalInput || !classInput || !studentInput || !minUnexcusedInput || !minAbsencesInput || !typeSelect) return;
 
     function applyFilters() {
-        const globalTerm = globalInput.value.trim().toLowerCase();
-        const classTerm = classInput.value.trim().toLowerCase();
-        const studentTerm = studentInput.value.trim().toLowerCase();
-        const minUnexcused = parseInt(minUnexcusedInput.value || '0', 10) || 0;
-        const minAbsences = parseInt(minAbsencesInput.value || '0', 10) || 0;
-        const tableType = typeSelect.value;
+      const globalTerm = globalInput.value.trim().toLowerCase();
+      const classTerm = classInput.value.trim().toLowerCase();
+      const studentTerm = studentInput.value.trim().toLowerCase();
+      const minUnexcused = parseInt(minUnexcusedInput.value || "0", 10) || 0;
+      const minAbsences = parseInt(minAbsencesInput.value || "0", 10) || 0;
+      const tableType = typeSelect.value;
 
-        // управление видимостью секций
-        document.querySelectorAll('[data-section-block]').forEach(function (block) {
-            const kind = block.dataset.sectionBlock;
-            block.style.display =
-                (tableType === 'all' || tableType === kind) ? '' : 'none';
-        });
+      // sections visibility
+      $$("[data-section-block]").forEach((block) => {
+        const kind = block.dataset.sectionBlock;
+        block.style.display = (tableType === "all" || tableType === kind) ? "" : "none";
+      });
 
-        // все строки во всех таблицах
-        document.querySelectorAll('tr[data-row-type]').forEach(function (row) {
-            const rowType = row.dataset.rowType;
-            const className = (row.dataset.className || '').toLowerCase();
-            const studentName = (row.dataset.studentName || '').toLowerCase();
-            const unexcused = parseInt(row.dataset.unexcused || row.dataset.totalUnexcused || '0', 10) || 0;
-            const absenceCount = parseInt(row.dataset.absenceCount || '0', 10) || 0;
+      // rows visibility
+      $$("tr[data-row-type]").forEach((row) => {
+        const rowType = row.dataset.rowType;
+        const className = (row.dataset.className || "").toLowerCase();
+        const studentName = (row.dataset.studentName || "").toLowerCase();
+        const unexcused = parseInt(row.dataset.unexcused || row.dataset.totalUnexcused || "0", 10) || 0;
+        const absenceCount = parseInt(row.dataset.absenceCount || "0", 10) || 0;
 
-            let visible = true;
+        let visible = true;
 
-            // фильтр по типу таблицы
-            if (tableType !== 'all') {
-                if (tableType === 'daily' && rowType !== 'daily') visible = false;
-                if (tableType === 'by_class' && rowType !== 'by_class') visible = false;
-                if (tableType === 'by_student' && rowType !== 'by_student') visible = false;
-            }
+        // filter by table type
+        if (tableType !== "all" && rowType !== tableType) visible = false;
 
-            if (globalTerm && !textMatches(row, globalTerm)) {
-                visible = false;
-            }
+        if (visible && globalTerm && !textMatches(row, globalTerm)) visible = false;
+        if (visible && classTerm && !className.includes(classTerm)) visible = false;
 
-            if (classTerm && !className.includes(classTerm)) {
-                visible = false;
-            }
+        if (visible && studentTerm) {
+          if (rowType === "by_student") {
+            if (!studentName.includes(studentTerm)) visible = false;
+          } else if (!textMatches(row, studentTerm)) {
+            visible = false;
+          }
+        }
 
-            if (studentTerm) {
-                if (rowType === 'by_student') {
-                    if (!studentName.includes(studentTerm)) {
-                        visible = false;
-                    }
-                } else if (!textMatches(row, studentTerm)) {
-                    visible = false;
-                }
-            }
+        if (visible && minUnexcused > 0 && (rowType === "daily" || rowType === "by_class")) {
+          if (unexcused < minUnexcused) visible = false;
+        }
 
-            if (minUnexcused > 0 &&
-                (rowType === 'daily' || rowType === 'by_class')) {
-                if (unexcused < minUnexcused) {
-                    visible = false;
-                }
-            }
+        if (visible && minAbsences > 0 && rowType === "by_student") {
+          if (absenceCount < minAbsences) visible = false;
+        }
 
-            if (minAbsences > 0 && rowType === 'by_student') {
-                if (absenceCount < minAbsences) {
-                    visible = false;
-                }
-            }
+        row.style.display = visible ? "" : "none";
+      });
 
-            row.style.display = visible ? '' : 'none';
-        });
+      // sync quick buttons state (UI only)
+      $$("[data-table-type-btn]").forEach((btn) => {
+        const v = btn.getAttribute("data-table-type-btn");
+        const isActive = (tableType === v);
+        btn.classList.toggle("active", isActive);
+        btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+      });
     }
 
-    [globalInput, classInput, studentInput, minUnexcusedInput, minAbsencesInput, typeSelect]
-        .forEach(function (el) {
-            if (!el) return;
-            el.addEventListener('input', applyFilters);
-            el.addEventListener('change', applyFilters);
-        });
+    const applyFiltersDebounced = debounce(applyFilters, 150);
+
+    [globalInput, classInput, studentInput, minUnexcusedInput, minAbsencesInput].forEach((el) => {
+      el.addEventListener("input", applyFiltersDebounced);
+      el.addEventListener("change", applyFilters);
+    });
+
+    typeSelect.addEventListener("change", applyFilters);
+
+    // quick buttons -> select
+    $$("[data-table-type-btn]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const v = btn.getAttribute("data-table-type-btn");
+        if (!v) return;
+        typeSelect.value = v;
+        applyFilters();
+      });
+    });
+
+    if (resetBtn) {
+      resetBtn.addEventListener("click", () => {
+        globalInput.value = "";
+        classInput.value = "";
+        studentInput.value = "";
+        minUnexcusedInput.value = "";
+        minAbsencesInput.value = "";
+        typeSelect.value = "all";
+        applyFilters();
+        globalInput.focus();
+      });
+    }
 
     applyFilters();
+  })();
 })();

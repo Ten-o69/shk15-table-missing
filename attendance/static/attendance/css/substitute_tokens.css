@@ -1,0 +1,135 @@
+/* substitute_tokens.css */
+
+.stack-gap{
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 992px){
+  .stack-gap{ gap: 1.25rem; }
+}
+
+.subtokens-icon{
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.25);
+  color: rgba(229,231,235,0.95);
+}
+.subtokens-icon i { font-size: 1.1rem; }
+
+.ttl-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+/* token box */
+.token-box{
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 12px;
+  background: #020617;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+
+  /* важно: не даём длинным строкам растягивать контейнер */
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* ВАЖНО: переносим длинный токен внутри контейнера */
+.token-box #token-text{
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+
+  /* современные браузеры: перенос где угодно */
+  overflow-wrap: anywhere;
+
+  /* fallback */
+  word-break: break-word;
+}
+
+/* На очень старых движках иногда нужен более агрессивный перенос */
+@supports not (overflow-wrap: anywhere){
+  .token-box #token-text{
+    word-break: break-all;
+  }
+}
+
+/* table shell */
+.app-table-shell{
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.app-table-shell .table-responsive{
+  overflow: auto;
+}
+
+/* make table compact */
+.tokens-table{
+  font-size: .93rem;
+}
+.tokens-table.table-sm > :not(caption) > * > *{
+  padding-top: .55rem;
+  padding-bottom: .55rem;
+}
+
+/* actions: always 3 buttons, wrapping allowed */
+.token-actions{
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  align-items: center;
+}
+.token-actions .btn{
+  white-space: nowrap;
+}
+
+/* mobile cards */
+.token-card{
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.03);
+  border-radius: 14px;
+  padding: .9rem;
+  margin-bottom: .75rem;
+
+  max-width: 100%;
+  min-width: 0;
+}
+
+.token-meta{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .5rem;
+}
+@media (min-width: 576px){
+  .token-meta{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .75rem;
+  }
+}
+
+.token-meta-item{
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(2,6,23,0.35);
+  border-radius: 12px;
+  padding: .6rem .65rem;
+
+  /* чтобы длинные значения не вылазили */
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

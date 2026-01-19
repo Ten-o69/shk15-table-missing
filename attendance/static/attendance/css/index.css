@@ -1,5 +1,10 @@
 /* index.css */
 
+/* поле поиска справа */
+.main-search{
+    min-width: min(420px, 100%);
+}
+
 /* подписи под заголовками в таблице */
 .th-sub {
     font-size: 0.75rem;
@@ -11,6 +16,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    min-width: 0;
 }
 
 /* Нижняя таблица льготников: кнопки не переносить */
@@ -18,7 +24,7 @@
     white-space: nowrap;
 }
 
-/* Summary bar: быстрые “плашки” итогов, красиво и адаптивно */
+/* Summary bar */
 .summary-bar {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -51,7 +57,6 @@
     line-height: 1.15;
 }
 
-/* адаптация summary под экраны */
 @media (max-width: 992px) {
     .summary-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -59,21 +64,19 @@
     .summary-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Улучшаем прокрутку таблиц на мобиле */
+/* Таблицы */
 .app-table-responsive {
     border: 1px solid rgba(255,255,255,0.10);
     border-radius: 14px;
     overflow: hidden;
 }
 
-/* таблица: чтобы длинные заголовки были читабельнее */
 .table-main thead th {
     vertical-align: bottom;
     padding-top: .9rem;
     padding-bottom: .75rem;
 }
 
-/* pills чуть аккуратнее в тёмной теме */
 .pill {
     background: rgba(2,6,23,0.55);
     border-color: rgba(255,255,255,0.10);
@@ -83,14 +86,54 @@
    Bootstrap modal UX
 ------------------------ */
 
-/* список в модалке — чтобы не “съедал” всё место */
+/* sheet-style на мобилке: компактнее, не fullscreen */
+@media (max-width: 576px){
+    .app-modal-sheet.modal-dialog{
+        width: calc(100% - 16px);
+        max-width: none;
+        margin: 8px auto;
+    }
+
+    /* высота “листа” */
+    .app-modal-sheet .modal-content{
+        max-height: min(72vh, 560px);
+        border-radius: 16px;
+    }
+
+    /* чуть компактнее шапка/подвал */
+    .app-modal-sheet .modal-header,
+    .app-modal-sheet .modal-footer{
+        padding: .65rem .75rem;
+    }
+
+    .app-modal-sheet .modal-body{
+        padding: .75rem .75rem;
+    }
+}
+
+/* для большой модалки (выбор учеников) можно дать чуть больше высоты */
+@media (max-width: 576px){
+    .app-modal-sheet-lg .modal-content{
+        max-height: min(80vh, 620px);
+    }
+}
+
+/* списки в модалках подстраиваем под высоту контента */
 #students-list.students-list {
-    max-height: min(55vh, 520px);
+    max-height: min(45vh, 520px);
     overflow: auto;
     padding-right: 4px;
 }
 
-/* Чекбокс-строки аккуратно и кликабельно */
+.readonly-list {
+    max-height: min(45vh, 520px);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 4px;
+}
+
 .student-row {
     display: flex;
     align-items: center;
@@ -114,16 +157,6 @@
     margin-top: 0;
 }
 
-/* Read-only список в модалке льготников */
-.readonly-list {
-    max-height: min(55vh, 520px);
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-right: 4px;
-}
-
 .readonly-item {
     padding: .55rem .65rem;
     border-radius: 12px;
@@ -131,12 +164,97 @@
     background: rgba(2,6,23,0.35);
 }
 
-/* Hint: мы используем d-none вместо hidden */
 #all-absent-hint b { font-weight: 700; }
 
-/* мелкие правки под мобилку */
-@media (max-width: 576px) {
-    .student-row {
-        padding: .6rem .7rem;
+/* =========================================
+   TABLE -> CARDS (mobile/tablet)
+========================================= */
+
+@media (max-width: 991.98px){
+
+    .app-table-responsive{
+        overflow: visible;
+        border-radius: 0;
+        border: 0;
+    }
+
+    .table-stack thead{
+        display: none;
+    }
+
+    .table-stack tbody{
+        display: block;
+    }
+
+    .table-stack tbody tr{
+        display: block;
+        margin-bottom: 12px;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 14px;
+        overflow: hidden;
+        background: rgba(255,255,255,0.03);
+    }
+
+    .table-stack.table-striped > tbody > tr:nth-of-type(odd) > *{
+        --bs-table-accent-bg: transparent;
+        background-color: transparent;
+    }
+
+    .table-stack tbody tr:hover{
+        background: rgba(255,255,255,0.04);
+    }
+
+    .table-stack tbody tr > td{
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: .65rem .75rem;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        min-width: 0;
+    }
+
+    .table-stack tbody tr > td::before{
+        content: attr(data-label);
+        flex: 0 0 44%;
+        max-width: 44%;
+        font-size: .75rem;
+        line-height: 1.15;
+        color: rgba(229,231,235,0.65);
+        padding-top: .15rem;
+        white-space: normal;
+    }
+
+    .table-stack tbody tr > td > *{
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .table-stack tbody tr > td.stack-head-cell{
+        display: block;
+        padding: .75rem .75rem;
+        border-top: 0;
+        background: rgba(2,6,23,0.45);
+    }
+
+    .table-stack tbody tr > td.stack-head-cell::before{
+        content: none;
+    }
+
+    .table-stack .pill,
+    .table-stack .pill-list,
+    .table-stack .selected-students,
+    .table-stack .selected-orvi-students,
+    .table-stack .selected-other-students,
+    .table-stack .selected-family-students,
+    .table-stack .selected-all-students{
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .table-stack .form-control-sm{
+        padding-top: .35rem;
+        padding-bottom: .35rem;
     }
 }

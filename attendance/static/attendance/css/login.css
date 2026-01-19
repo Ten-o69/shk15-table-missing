@@ -1,30 +1,78 @@
 /* login.css */
 
-/* ===== Password toggle (страничная специфика) ===== */
-.password-field {
-    position: relative;
-    display: flex;
+/* Карточка логина: чуть более "собранная" */
+.login-card {
+    border-radius: 16px;
+}
+
+/* Небольшая иконка в шапке формы */
+.login-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
+    background: rgba(59,130,246,0.12);
+    border: 1px solid rgba(59,130,246,0.25);
+    color: rgba(229,231,235,0.95);
+}
+.login-icon i {
+    font-size: 1.1rem;
 }
 
-.input-with-icon {
-    padding-right: 44px;
+/* Input-group в тёмной теме */
+.input-group-text {
+    background: rgba(2,6,23,0.55);
+    border-color: rgba(255,255,255,0.10);
+    color: rgba(229,231,235,0.85);
 }
 
+/* Карточка по центру на широких экранах */
+.card-narrow {
+    margin: 0 auto;
+}
+
+/* Кнопка показать/скрыть пароль (оставляем, чтобы не ломать другие страницы логина) */
 .password-toggle {
-    color: whitesmoke;
     position: absolute;
-    right: 10px;
     top: 50%;
+    right: 10px;
     transform: translateY(-50%);
     border: 0;
     background: transparent;
-    padding: 6px;
-    cursor: pointer;
-    opacity: 0.75;
-    font-size: 18px;
+    padding: 8px;
     line-height: 1;
+    cursor: pointer;
+
+    color: rgba(229, 231, 235, 0.85);
+    opacity: 0.85;
 }
 
-.password-toggle:hover { opacity: 1; }
-.password-toggle:focus { outline: none; }
+.password-toggle:hover {
+    opacity: 1;
+}
+
+.password-toggle:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 .2rem rgba(59,130,246,0.25);
+    border-radius: 10px;
+}
+
+/* Чтоб иконка была кликабельной и не прыгала */
+.password-toggle i {
+    font-size: 1.15rem;
+    display: inline-block;
+}
+
+/* Мелкая подсказка внизу */
+.login-help {
+    line-height: 1.35;
+}
+
+/* На очень маленьких экранах чуть меньше отступов */
+@media (max-width: 360px) {
+    .login-card .card-body {
+        padding: 1rem !important;
+    }
+}

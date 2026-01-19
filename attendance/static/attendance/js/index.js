@@ -544,7 +544,6 @@
             let allBeforeOpen = [];
 
             function getModal() {
-                // Важно: каждый раз получать/создавать корректный instance
                 return BS.Modal.getInstance(modalEl) || new BS.Modal(modalEl, {
                     backdrop: false,
                     keyboard: true,
@@ -556,7 +555,6 @@
                 currentClassId = String(classId);
                 currentMode = mode;
 
-                // hint toggle (Bootstrap friendly)
                 if (allHint) {
                     if (mode === "all") allHint.classList.remove("d-none");
                     else allHint.classList.add("d-none");
@@ -667,7 +665,6 @@
                 getModal().hide();
             }
 
-            // search inside modal
             searchInput.addEventListener("input", () => {
                 const term = (searchInput.value || "").toLowerCase();
                 $$(".student-row", studentsList).forEach(r => {
@@ -676,7 +673,6 @@
                 });
             });
 
-            // open modal buttons
             document.addEventListener("click", (e) => {
                 const btn = e.target.closest(".open-modal-btn");
                 if (!btn) return;

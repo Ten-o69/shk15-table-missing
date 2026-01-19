@@ -1,65 +1,97 @@
 /* statistics.css */
 
-/* ===== Filters layout ===== */
-.filters-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 8px;
+/* Section spacing */
+.card-section {
+  margin-top: 1.25rem;
+}
+.card-section:first-of-type {
+  margin-top: 0;
 }
 
-.filters-panel {
-    padding: 10px 12px;
-    border-radius: 12px;
-    background-color: var(--bg-subcard);
-    border: 1px solid var(--border);
+.section-header {
+  padding: .25rem 0;
 }
 
-.filters-row-multi {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 12px;
+/* Tables */
+.app-table-responsive {
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  overflow: hidden;
 }
 
-.filters-row label {
-    font-size: 12px;
-    color: var(--text-muted);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+/* Make small tables more readable on mobile */
+.table.table-sm > :not(caption) > * > * {
+  padding-top: .55rem;
+  padding-bottom: .55rem;
 }
 
-/* ===== Month form ===== */
-.month-form {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 6px;
-    font-size: 13px;
+/* Accordion in dark theme */
+.app-accordion-item {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 10px;
 }
 
-.month-form label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
+.app-accordion-btn {
+  background: rgba(2,6,23,0.55);
+  color: rgba(229,231,235,0.92);
 }
 
-/* ===== Subcard header layout (уникально для статистики) ===== */
-.subcard-header-line {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 4px;
+.app-accordion-btn:focus {
+  box-shadow: 0 0 0 .2rem rgba(59,130,246,0.20);
 }
 
-.subcard-header-main h3 {
-    margin-bottom: 4px;
+.accordion-button:not(.collapsed) {
+  background: rgba(59,130,246,0.10);
+  color: #fff;
 }
 
-/* ===== Daily summary responsive override (в base.css этого нет) ===== */
-.daily-summary {
-    font-size: clamp(0.8rem, 0.8rem + 0.15vw, 0.95rem);
-    flex-wrap: wrap;
-    gap: 0.4rem;
+.accordion-body {
+  background: rgba(2,6,23,0.35);
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Daily mini-summary */
+.summary-mini {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem .75rem;
+  padding: .6rem .75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.03);
+  font-size: .92rem;
+}
+
+.summary-mini-item b { font-weight: 700; }
+
+/* Pills */
+.pill-list {
+  gap: 6px;
+}
+.pill {
+  background: rgba(2,6,23,0.55);
+  border-color: rgba(255,255,255,0.10);
+}
+
+/* Filters: tighten input-group icon */
+.input-group-text {
+  padding-right: .5rem;
+}
+
+/* Quick table type buttons: keep compact */
+[data-table-type-btn] {
+  white-space: nowrap;
+}
+
+/* Mobile tweaks */
+@media (max-width: 576px) {
+  .summary-mini {
+    font-size: .9rem;
+  }
+  .table thead th {
+    font-size: .85rem;
+  }
 }

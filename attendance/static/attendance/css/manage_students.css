@@ -1,174 +1,75 @@
 /* manage_students.css */
 
-/* ===== Toolbar / filters ===== */
-.toolbar {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    justify-content: space-between;
-}
-
-.filters {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: flex-end;
-}
-
-.filters label {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.filters .inline {
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-}
-
-.actions-bar {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(0,0,0,0.08);
-}
-
-.actions-left,
-.actions-right {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-/* мелкий текст счётчиков */
-.muted-small {
-    font-size: 0.92em;
-    opacity: 0.85;
-}
-
-.counter-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(0,0,0,0.10);
-    background: rgba(0,0,0,0.03);
-}
-
-/* ===== FIX: manage_students table should NOT inherit card styles ===== */
-.manage-table tr.student-card,
-.manage-table tr.student-row {
-    display: table-row !important;
-    position: static !important;
-    padding: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    outline: none !important;
-    overflow: visible !important;
-}
-
-.manage-table tr.student-card::before,
-.manage-table tr.student-row::before {
-    content: none !important;
-    display: none !important;
-}
-
-/* ===== Manage students: табличный UX ===== */
+/* Таблица удобнее в тёмной теме + не ломаем адаптив */
 .manage-table {
-    table-layout: auto !important;
-    width: 100%;
-    min-width: 980px;
-}
-
-.manage-table th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: #020617;
-    border-bottom: 1px solid var(--border);
-}
-
-.manage-table td {
-    vertical-align: middle;
-}
-
-.manage-table tbody tr td {
-    background-color: rgba(2, 6, 23, 0.35);
-}
-.manage-table tbody tr:nth-child(even) td {
-    background-color: rgba(2, 6, 23, 0.50);
-}
-.manage-table tbody tr:hover td {
-    background-color: rgba(59, 130, 246, 0.08);
-}
-
-.manage-table tr.is-inactive td {
-    opacity: 0.72;
-}
-.manage-table tr.is-inactive .text-bold {
-    color: var(--text-muted);
-}
-
-.manage-table .pick {
-    padding: 0;
-    border: none;
-    background: transparent;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-.manage-table .pick input {
-    transform: translateY(1px);
-}
-
-.manage-table .badge {
-    margin-left: 0;
-    padding: 4px 10px;
-    font-size: 12px;
-    border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(2,6,23,0.55);
-    color: var(--text);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-    line-height: 1;
-}
-
-.manage-table .badge-success {
-    background: rgba(52, 211, 153, 0.12);
-    border-color: rgba(52, 211, 153, 0.25);
-}
-.manage-table .badge-danger  {
-    background: rgba(249, 115, 115, 0.12);
-    border-color: rgba(249, 115, 115, 0.25);
-}
-.manage-table .badge-warn    {
-    background: rgba(245, 158, 11, 0.14);
-    border-color: rgba(245, 158, 11, 0.28);
-}
-
-.manage-table .btn {
-    white-space: nowrap;
-}
-.manage-table .btn-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+  min-width: 980px;
 }
 
 @media (max-width: 720px) {
-    .manage-table {
-        min-width: 940px;
-    }
+  .manage-table { min-width: 940px; }
+}
+
+/*!* Инактивные строки *!*/
+/*.manage-table tr.is-inactive td {*/
+/*  opacity: 0.72;*/
+/*}*/
+/*.manage-table tr.is-inactive .fw-semibold {*/
+/*  color: var(--text-muted);*/
+/*}*/
+
+/*!* Чуть лучше видимость строк *!*/
+/*.manage-table tbody tr td {*/
+/*  background-color: rgba(2, 6, 23, 0.42);*/
+/*}*/
+
+/*!* УБРАТЬ зебру *!*/
+/*.manage-table tbody tr:nth-child(even) td {*/
+/*  background-color: rgba(2, 6, 23, 0.42);*/
+/*}*/
+
+/*!* Hover оставим аккуратным *!*/
+/*.manage-table tbody tr:hover td {*/
+/*  background-color: rgba(59, 130, 246, 0.08);*/
+/*}*/
+
+/* Плашки-счётчики */
+.app-counter-pill {
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(2,6,23,0.35);
+  color: rgba(229,231,235,0.85);
+}
+
+/* Радио-строки выбора типа льготы (модалка) */
+.priv-type-row {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .55rem .65rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(2,6,23,0.35);
+  cursor: pointer;
+  user-select: none;
+}
+
+.priv-type-row:hover {
+  background: rgba(59,130,246,0.08);
+  border-color: rgba(59,130,246,0.22);
+}
+
+.priv-type-row input[type="radio"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0;
+}
+
+/* Чтобы label полностью был кликабельным */
+.priv-type-row span {
+  flex: 1;
+}
+
+/* При фокусе — видно */
+.priv-type-row:has(input:focus) {
+  outline: 2px solid rgba(59,130,246,0.35);
+  outline-offset: 2px;
 }
