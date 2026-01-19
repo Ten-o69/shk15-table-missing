@@ -306,6 +306,21 @@ input[type="number"] {
     opacity: 1;
 }
 
+/* FIX: backdrop-filter может ломать fixed-позиционирование модалок (клик “только снизу” при скролле).
+   На время открытой модалки отключаем blur у крупных контейнеров. */
+body.modal-open .card,
+body.modal-open .app-header {
+    backdrop-filter: none !important;
+}
+
+/* На всякий случай: модалка всегда поверх sticky-хедера */
+.modal {
+    z-index: 1055;
+}
+.modal-backdrop {
+    z-index: 1050;
+}
+
 /* ===== Utility: muted ===== */
 .muted, .text-muted {
     color: rgba(229,231,235,0.65) !important;

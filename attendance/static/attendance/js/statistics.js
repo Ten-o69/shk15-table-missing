@@ -16,6 +16,120 @@
     };
   }
 
+  // -----------------------------
+  // Section collapse helpers
+  // -----------------------------
+  const collapseInstance = new WeakMap();
+  const SECTION_KINDS = ["privileged_types", "daily", "by_class", "by_student"];
+
+  function hasBootstrapCollapse() {
+    return typeof window !== "undefined" && !!window.bootstrap && !!window.bootstrap.Collapse;
+  }
+
+  function getCollapseInstance(el) {
+    if (!el) return null;
+    if (!hasBootstrapCollapse()) return null;
+
+    if (collapseInstance.has(el)) return collapseInstance.get(el);
+
+    const inst = window.bootstrap.Collapse.getInstance(el) || new window.bootstrap.Collapse(el, { toggle: false });
+    collapseInstance.set(el, inst);
+    return inst;
+  }
+
+  function setButtonExpanded(kind, expanded) {
+    const btn = document.querySelector(`[data-section-toggle-btn="${kind}"]`);
+    if (!btn) return;
+    btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+  }
+
+  function setSectionExpanded(kind, expanded) {
+    const body = document.querySelector(`[data-section-collapse="${kind}"]`);
+    if (!body) return;
+
+    const section = body.closest("[data-section-block]");
+    const sectionHidden = section && section.style.display === "none";
+    if (sectionHidden && expanded) return;
+
+    const inst = getCollapseInstance(body);
+    if (inst) {
+      if (expanded) inst.show();
+      else inst.hide();
+    } else {
+      body.classList.toggle("show", !!expanded);
+    }
+
+    setButtonExpanded(kind, expanded);
+  }
+
+  function scrollToSection(kind) {
+    const btn = document.querySelector(`[data-section-toggle-btn="${kind}"]`);
+    if (!btn) return;
+
+    const top = btn.getBoundingClientRect().top + window.pageYOffset - 12;
+    window.scrollTo({ top, behavior: "smooth" });
+  }
+
+  function syncSectionsForTableType(tableType, { doScroll = false } = {}) {
+    if (tableType === "all") {
+      // all показываем, но по умолчанию закрыты
+      SECTION_KINDS.forEach(k => setSectionExpanded(k, false));
+      return;
+    }
+
+    SECTION_KINDS.forEach(k => setSectionExpanded(k, k === tableType));
+
+    if (doScroll) {
+      setTimeout(() => scrollToSection(tableType), 60);
+    }
+  }
+
+  // -----------------------------
+  // Smart auto-open logic (only for tableType=all)
+  // -----------------------------
+  function isRowVisible(row) {
+    // row.style.display может быть пустым -> считаем видимым
+    return row && row.style.display !== "none";
+  }
+
+  function hasVisibleRowsInSection(kind) {
+    const block = document.querySelector(`[data-section-block="${kind}"]`);
+    if (!block || block.style.display === "none") return false;
+
+    const rows = $$(`tr[data-row-type="${kind}"]`, block);
+    return rows.some(isRowVisible);
+  }
+
+  function applySmartAutoCollapse({ tableType, isFiltering } = {}) {
+    // ВАЖНО: умное авто-раскрытие действует только когда выбрано "Все"
+    if (tableType !== "all") return;
+
+    if (!isFiltering) {
+      // фильтров нет -> все закрыты
+      SECTION_KINDS.forEach(k => setSectionExpanded(k, false));
+      return;
+    }
+
+    // фильтры есть -> открываем только секции с видимыми строками
+    SECTION_KINDS.forEach(k => {
+      const open = hasVisibleRowsInSection(k);
+      setSectionExpanded(k, open);
+    });
+  }
+
+  function syncDailyAccordionVisibility() {
+    const dailyBlock = document.querySelector(`[data-section-block="daily"]`);
+    if (!dailyBlock || dailyBlock.style.display === "none") return;
+
+    // каждый день — accordion-item, внутри есть таблица со строками daily
+    const items = $$(".accordion-item", dailyBlock);
+    items.forEach(item => {
+      const rows = $$(`tr[data-row-type="daily"]`, item);
+      const hasVisible = rows.some(isRowVisible);
+      item.style.display = hasVisible ? "" : "none";
+    });
+  }
+
   (function initFilters() {
     const globalInput = $("#global-search");
     const classInput = $("#filter-class");
@@ -27,13 +141,20 @@
 
     if (!globalInput || !classInput || !studentInput || !minUnexcusedInput || !minAbsencesInput || !typeSelect) return;
 
-    function applyFilters() {
+    function applyFilters({ doScroll = false } = {}) {
       const globalTerm = globalInput.value.trim().toLowerCase();
       const classTerm = classInput.value.trim().toLowerCase();
       const studentTerm = studentInput.value.trim().toLowerCase();
       const minUnexcused = parseInt(minUnexcusedInput.value || "0", 10) || 0;
       const minAbsences = parseInt(minAbsencesInput.value || "0", 10) || 0;
       const tableType = typeSelect.value;
+
+      const isFiltering =
+        !!globalTerm ||
+        !!classTerm ||
+        !!studentTerm ||
+        minUnexcused > 0 ||
+        minAbsences > 0;
 
       // sections visibility
       $$("[data-section-block]").forEach((block) => {
@@ -76,6 +197,9 @@
         row.style.display = visible ? "" : "none";
       });
 
+      // daily: скрываем дни без строк после фильтрации
+      syncDailyAccordionVisibility();
+
       // sync quick buttons state (UI only)
       $$("[data-table-type-btn]").forEach((btn) => {
         const v = btn.getAttribute("data-table-type-btn");
@@ -83,24 +207,34 @@
         btn.classList.toggle("active", isActive);
         btn.setAttribute("aria-pressed", isActive ? "true" : "false");
       });
+
+      // collapse behavior
+      if (tableType === "all") {
+        // при "Все" работаем умно
+        applySmartAutoCollapse({ tableType, isFiltering });
+      } else {
+        // при выборе конкретной таблицы — раскрываем её (как раньше)
+        syncSectionsForTableType(tableType, { doScroll });
+      }
     }
 
-    const applyFiltersDebounced = debounce(applyFilters, 150);
+    const applyFiltersDebounced = debounce(() => applyFilters({ doScroll: false }), 150);
 
     [globalInput, classInput, studentInput, minUnexcusedInput, minAbsencesInput].forEach((el) => {
       el.addEventListener("input", applyFiltersDebounced);
-      el.addEventListener("change", applyFilters);
+      el.addEventListener("change", () => applyFilters({ doScroll: false }));
     });
 
-    typeSelect.addEventListener("change", applyFilters);
+    // select: раскрываем выбранную секцию и скроллим к ней
+    typeSelect.addEventListener("change", () => applyFilters({ doScroll: true }));
 
-    // quick buttons -> select
+    // quick buttons -> select (+scroll)
     $$("[data-table-type-btn]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const v = btn.getAttribute("data-table-type-btn");
         if (!v) return;
         typeSelect.value = v;
-        applyFilters();
+        applyFilters({ doScroll: true });
       });
     });
 
@@ -112,11 +246,27 @@
         minUnexcusedInput.value = "";
         minAbsencesInput.value = "";
         typeSelect.value = "all";
-        applyFilters();
+        applyFilters({ doScroll: false });
         globalInput.focus();
       });
     }
 
-    applyFilters();
+    // init (всё закрыто, как требуется)
+    applyFilters({ doScroll: false });
+  })();
+
+  // Keep aria-expanded in sync if user manually collapses/expands
+  (function syncAriaOnUserToggle() {
+    document.addEventListener("shown.bs.collapse", (e) => {
+      const kind = e.target && e.target.getAttribute("data-section-collapse");
+      if (!kind) return;
+      setButtonExpanded(kind, true);
+    });
+
+    document.addEventListener("hidden.bs.collapse", (e) => {
+      const kind = e.target && e.target.getAttribute("data-section-collapse");
+      if (!kind) return;
+      setButtonExpanded(kind, false);
+    });
   })();
 })();
