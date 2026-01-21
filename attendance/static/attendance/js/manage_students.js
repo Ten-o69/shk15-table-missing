@@ -130,7 +130,7 @@
 
   const bsModal = getModalInstance();
 
-  const openModal = (studentId, studentName, currentType) => {
+  const openModal = (studentId, studentName, currentTypes) => {
     currentStudentId = String(studentId || "");
     if (!currentStudentId) return;
 
@@ -140,9 +140,15 @@
 
     // reset + set current
     $$('input[name="priv_type"]', modalEl).forEach(r => (r.checked = false));
-    if (currentType) {
-      const radio = $(`input[name="priv_type"][value="${currentType}"]`, modalEl);
-      if (radio) radio.checked = true;
+    const typeList = (currentTypes || "")
+      .split(",")
+      .map(t => t.trim())
+      .filter(Boolean);
+    if (typeList.length) {
+      typeList.forEach((t) => {
+        const box = $(`input[name="priv_type"][value="${t}"]`, modalEl);
+        if (box) box.checked = true;
+      });
     }
 
     bsModal.show();
@@ -155,7 +161,7 @@
 
     const sid = btn.dataset.studentId;
     const name = btn.dataset.studentName || "";
-    const cur = btn.dataset.currentType || "";
+    const cur = btn.dataset.currentTypes || "";
 
     openModal(sid, name, cur);
   });
@@ -166,14 +172,14 @@
       if (!form || !formStudentId || !formValue) return;
       if (!currentStudentId) return;
 
-      const selected = $('input[name="priv_type"]:checked', modalEl);
-      if (!selected) {
-        alert("Выберите тип льготы или нажмите «Снять льготу».");
+      const selected = $$('input[name="priv_type"]:checked', modalEl);
+      if (!selected.length) {
+        alert("Выберите один или несколько типов льготы или нажмите «Снять льготу».");
         return;
       }
 
       formStudentId.value = currentStudentId;
-      formValue.value = selected.value;
+      formValue.value = selected.map(el => el.value).join(",");
       form.submit();
     });
   }

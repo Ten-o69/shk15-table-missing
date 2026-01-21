@@ -48,7 +48,7 @@ class Student(models.Model):
         SVO = 'svo', 'СВО'
         MULTI = 'multi', 'Многодетные'
         LOW_INCOME = 'low_income', 'Малоимущие'
-        DISABLED = 'disabled', 'Инвалиды'
+        DISABLED = 'disabled', 'ОВЗ'
 
     full_name = models.CharField(max_length=255, verbose_name='ФИО ученика')
     class_room = models.ForeignKey(
@@ -65,14 +65,13 @@ class Student(models.Model):
         verbose_name='Льготник'
     )
 
-    # ✅ НОВОЕ: тип льготы
-    privilege_type = models.CharField(
-        max_length=20,
-        choices=PrivilegeType.choices,
-        null=True,
+    # ✅ НОВОЕ: типы льготы (может быть несколько)
+    privilege_types = models.ManyToManyField(
+        'PrivilegeType',
         blank=True,
-        verbose_name='Тип льготы',
-        help_text='Если указан тип льготы — ученик считается льготником.'
+        related_name='students',
+        verbose_name='Типы льгот',
+        help_text='Если указаны типы льготы — ученик считается льготником.'
     )
 
     class Meta:
@@ -83,6 +82,23 @@ class Student(models.Model):
 
     def __str__(self):
         return f'{self.full_name} ({self.class_room})'
+
+
+class PrivilegeType(models.Model):
+    code = models.CharField(
+        max_length=20,
+        choices=Student.PrivilegeType.choices,
+        unique=True,
+        verbose_name='Код типа льготы'
+    )
+
+    class Meta:
+        verbose_name = 'Тип льготы'
+        verbose_name_plural = 'Типы льгот'
+        ordering = ['code']
+
+    def __str__(self):
+        return self.get_code_display()
 
 
 class AttendanceSummary(models.Model):

@@ -39,7 +39,7 @@
   color: rgba(229,231,235,0.85);
 }
 
-/* Радио-строки выбора типа льготы (модалка) */
+/* Строки выбора типа льготы (модалка) */
 .priv-type-row {
   display: flex;
   align-items: center;
@@ -57,7 +57,7 @@
   border-color: rgba(59,130,246,0.22);
 }
 
-.priv-type-row input[type="radio"] {
+.priv-type-row input[type="checkbox"] {
   width: 1.05rem;
   height: 1.05rem;
   margin-top: 0;
