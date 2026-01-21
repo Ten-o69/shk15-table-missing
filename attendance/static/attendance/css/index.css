@@ -8,7 +8,7 @@
 /* подписи под заголовками в таблице */
 .th-sub {
     font-size: 0.75rem;
-    color: rgba(229,231,235,0.65);
+    color: var(--text-muted-soft);
 }
 
 /* Ячейка с выбором отсутствующих + ошибки */
@@ -24,15 +24,30 @@
     white-space: nowrap;
 }
 
+/* Light theme: modal trigger buttons on main page */
+:root[data-theme="light"] .open-modal-btn.btn-outline-warning,
+:root[data-theme="light"] .open-privileged-modal-btn.btn-outline-info {
+    color: #0f172a;
+    border-color: rgba(15,23,42,0.25);
+    background: rgba(15,23,42,0.04);
+}
+
+:root[data-theme="light"] .open-modal-btn.btn-outline-warning:hover,
+:root[data-theme="light"] .open-privileged-modal-btn.btn-outline-info:hover {
+    color: #0f172a;
+    border-color: rgba(37,99,235,0.25);
+    background: rgba(37,99,235,0.10);
+}
+
 /* Summary bar */
 .summary-bar {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0.5rem;
     padding: 0.75rem;
-    border: 1px solid rgba(255,255,255,0.10);
+    border: 1px solid var(--border);
     border-radius: 14px;
-    background: rgba(255,255,255,0.03);
+    background: var(--surface-1);
 }
 
 .summary-item {
@@ -41,13 +56,13 @@
     gap: 0.15rem;
     padding: 0.55rem 0.65rem;
     border-radius: 12px;
-    background: rgba(2,6,23,0.40);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--surface-3);
+    border: 1px solid var(--border-weak);
 }
 
 .summary-label {
     font-size: 0.75rem;
-    color: rgba(229,231,235,0.65);
+    color: var(--text-muted-soft);
     line-height: 1.1;
 }
 
@@ -66,7 +81,7 @@
 
 /* Таблицы */
 .app-table-responsive {
-    border: 1px solid rgba(255,255,255,0.10);
+    border: 1px solid var(--border);
     border-radius: 14px;
     overflow: hidden;
 }
@@ -78,8 +93,8 @@
 }
 
 .pill {
-    background: rgba(2,6,23,0.55);
-    border-color: rgba(255,255,255,0.10);
+    background: var(--surface-5);
+    border-color: var(--border);
 }
 
 /* -----------------------
@@ -140,15 +155,15 @@
     gap: .65rem;
     padding: .55rem .65rem;
     border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.10);
-    background: rgba(2,6,23,0.35);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
     cursor: pointer;
     user-select: none;
 }
 
 .student-row:hover {
-    background: rgba(59,130,246,0.10);
-    border-color: rgba(59,130,246,0.26);
+    background: var(--accent-hover);
+    border-color: var(--accent-hover-border);
 }
 
 .student-row input[type="checkbox"] {
@@ -160,8 +175,8 @@
 .readonly-item {
     padding: .55rem .65rem;
     border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.10);
-    background: rgba(2,6,23,0.35);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
 }
 
 #all-absent-hint b { font-weight: 700; }
@@ -189,10 +204,10 @@
     .table-stack tbody tr{
         display: block;
         margin-bottom: 12px;
-        border: 1px solid rgba(255,255,255,0.10);
+        border: 1px solid var(--border);
         border-radius: 14px;
         overflow: hidden;
-        background: rgba(255,255,255,0.03);
+        background: var(--surface-1);
     }
 
     .table-stack.table-striped > tbody > tr:nth-of-type(odd) > *{
@@ -201,7 +216,7 @@
     }
 
     .table-stack tbody tr:hover{
-        background: rgba(255,255,255,0.04);
+        background: var(--surface-quiet-2);
     }
 
     .table-stack tbody tr > td{
@@ -210,7 +225,7 @@
         justify-content: space-between;
         gap: 12px;
         padding: .65rem .75rem;
-        border-top: 1px solid rgba(255,255,255,0.08);
+        border-top: 1px solid var(--border-weak);
         min-width: 0;
     }
 
@@ -220,7 +235,7 @@
         max-width: 44%;
         font-size: .75rem;
         line-height: 1.15;
-        color: rgba(229,231,235,0.65);
+        color: var(--text-muted-soft);
         padding-top: .15rem;
         white-space: normal;
     }
@@ -234,7 +249,7 @@
         display: block;
         padding: .75rem .75rem;
         border-top: 0;
-        background: rgba(2,6,23,0.45);
+        background: var(--surface-4);
     }
 
     .table-stack tbody tr > td.stack-head-cell::before{

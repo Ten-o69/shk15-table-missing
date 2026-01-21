@@ -2,6 +2,7 @@
 
 /* ===== App tokens + Bootstrap theming ===== */
 :root {
+    color-scheme: dark;
     --bg: #111827;
     --bg-elevated: #0b1220;
     --bg-subcard: #0f172a;
@@ -10,27 +11,153 @@
     --text-muted: #9ca3af;
 
     --primary: #3b82f6;
-    --border: rgba(255,255,255,0.10);
 
-    /* Bootstrap CSS vars (dark theme) */
+    --border: rgba(255,255,255,0.10);
+    --border-weak: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.18);
+
+    --surface-1: rgba(255,255,255,0.03);
+    --surface-2: rgba(2,6,23,0.35);
+    --surface-3: rgba(2,6,23,0.40);
+    --surface-4: rgba(2,6,23,0.45);
+    --surface-5: rgba(2,6,23,0.55);
+    --surface-6: rgba(2,6,23,0.65);
+    --surface-7: rgba(2,6,23,0.75);
+    --surface-8: rgba(2,6,23,0.85);
+    --surface-quiet: rgba(255,255,255,0.02);
+    --surface-quiet-2: rgba(255,255,255,0.04);
+
+    --nav-bg: #020617;
+    --nav-border: rgba(255,255,255,0.08);
+    --nav-link: rgba(229,231,235,0.78);
+    --nav-link-hover-bg: rgba(59,130,246,0.10);
+    --nav-link-active-bg: rgba(59,130,246,0.16);
+    --nav-link-active-border: rgba(59,130,246,0.35);
+
+    --accent-soft: rgba(59,130,246,0.12);
+    --accent-border: rgba(59,130,246,0.25);
+    --accent-hover: rgba(59,130,246,0.10);
+    --accent-hover-border: rgba(59,130,246,0.26);
+
+    --focus-ring: rgba(59,130,246,0.25);
+    --focus-ring-soft: rgba(59,130,246,0.20);
+    --focus-ring-strong: rgba(59,130,246,0.35);
+
+    --skip-bg: rgba(2,6,23,0.92);
+    --skip-text: rgba(229,231,235,0.95);
+    --skip-border: rgba(255,255,255,0.14);
+
+    --badge-bg: rgba(255,255,255,0.06);
+    --badge-border: rgba(255,255,255,0.10);
+
+    --table-head-color: rgba(229,231,235,0.75);
+    --table-border: rgba(255,255,255,0.10);
+    --table-striped-bg: rgba(255,255,255,0.03);
+    --table-hover-bg: var(--accent-hover);
+
+    --alert-secondary-bg: rgba(255,255,255,0.04);
+    --alert-secondary-color: rgba(229,231,235,0.92);
+    --alert-secondary-border: rgba(255,255,255,0.12);
+
+    --text-muted-strong: rgba(229,231,235,0.85);
+    --text-muted-soft: rgba(229,231,235,0.65);
+
+    --token-box-bg: var(--surface-5);
+    --token-box-border: var(--border-strong);
+
+    --secondary-subtle-bg: rgba(255,255,255,0.08);
+    --secondary-subtle-border: rgba(255,255,255,0.10);
+
+    --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.35);
+
+    /* Bootstrap CSS vars */
     --bs-body-bg: var(--bg);
     --bs-body-color: var(--text);
     --bs-emphasis-color: var(--text);
     --bs-secondary-color: var(--text-muted);
-    --bs-tertiary-color: rgba(229,231,235,0.65);
+    --bs-tertiary-color: var(--text-muted-soft);
 
     --bs-primary: var(--primary);
     --bs-link-color: var(--primary);
     --bs-link-hover-color: #7aa7ff;
 
     --bs-border-color: var(--border);
-    --bs-card-bg: rgba(255,255,255,0.03);
+    --bs-card-bg: var(--surface-1);
     --bs-card-border-color: var(--border);
 
     --bs-border-radius: 14px;
     --bs-border-radius-lg: 16px;
+}
 
-    --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.35);
+:root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f6f7fb;
+    --bg-elevated: #ffffff;
+    --bg-subcard: #f1f5f9;
+
+    --text: #0f172a;
+    --text-muted: #475569;
+
+    --primary: #2563eb;
+
+    --border: rgba(15,23,42,0.12);
+    --border-weak: rgba(15,23,42,0.08);
+    --border-strong: rgba(15,23,42,0.18);
+
+    --surface-1: rgba(15,23,42,0.03);
+    --surface-2: rgba(15,23,42,0.05);
+    --surface-3: rgba(15,23,42,0.06);
+    --surface-4: rgba(15,23,42,0.08);
+    --surface-5: rgba(15,23,42,0.08);
+    --surface-6: #ffffff;
+    --surface-7: #ffffff;
+    --surface-8: rgba(15,23,42,0.10);
+    --surface-quiet: rgba(15,23,42,0.02);
+    --surface-quiet-2: rgba(15,23,42,0.04);
+
+    --nav-bg: #ffffff;
+    --nav-border: rgba(15,23,42,0.08);
+    --nav-link: rgba(30,41,59,0.85);
+    --nav-link-hover-bg: rgba(37,99,235,0.08);
+    --nav-link-active-bg: rgba(37,99,235,0.14);
+    --nav-link-active-border: rgba(37,99,235,0.25);
+
+    --accent-soft: rgba(37,99,235,0.10);
+    --accent-border: rgba(37,99,235,0.22);
+    --accent-hover: rgba(37,99,235,0.08);
+    --accent-hover-border: rgba(37,99,235,0.22);
+
+    --focus-ring: rgba(37,99,235,0.25);
+    --focus-ring-soft: rgba(37,99,235,0.20);
+    --focus-ring-strong: rgba(37,99,235,0.30);
+
+    --skip-bg: #ffffff;
+    --skip-text: #0f172a;
+    --skip-border: rgba(15,23,42,0.15);
+
+    --badge-bg: rgba(15,23,42,0.06);
+    --badge-border: rgba(15,23,42,0.12);
+
+    --table-head-color: rgba(15,23,42,0.85);
+    --table-border: rgba(15,23,42,0.08);
+    --table-striped-bg: rgba(15,23,42,0.04);
+    --table-hover-bg: rgba(37,99,235,0.10);
+
+    --alert-secondary-bg: rgba(15,23,42,0.04);
+    --alert-secondary-color: rgba(15,23,42,0.85);
+    --alert-secondary-border: rgba(15,23,42,0.12);
+
+    --text-muted-strong: rgba(15,23,42,0.80);
+    --text-muted-soft: rgba(15,23,42,0.60);
+
+    --token-box-bg: #ffffff;
+    --token-box-border: rgba(15,23,42,0.16);
+
+    --secondary-subtle-bg: rgba(15,23,42,0.08);
+    --secondary-subtle-border: rgba(15,23,42,0.12);
+
+    --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.12);
+    --bs-link-hover-color: #1d4ed8;
 }
 
 *,
@@ -54,9 +181,9 @@ body {
     z-index: 2000;
     padding: .5rem .75rem;
     border-radius: 12px;
-    background: rgba(2,6,23,0.92);
-    color: rgba(229,231,235,0.95);
-    border: 1px solid rgba(255,255,255,0.14);
+    background: var(--skip-bg);
+    color: var(--skip-text);
+    border: 1px solid var(--skip-border);
     text-decoration: none;
     transform: translateY(-160%);
     transition: transform .15s ease;
@@ -64,7 +191,7 @@ body {
 .skip-link:focus{
     transform: translateY(0);
     outline: none;
-    box-shadow: 0 0 0 .2rem rgba(59,130,246,0.25);
+    box-shadow: 0 0 0 .2rem var(--focus-ring);
 }
 
 /* ===== Layout ===== */
@@ -85,43 +212,43 @@ body {
 
 /* ===== Navbar ===== */
 .app-navbar {
-    background: #020617; /* чуть темнее фона */
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: var(--nav-bg);
+    border-bottom: 1px solid var(--nav-border);
 }
 
-.navbar .navbar-brand {
-    color: rgba(229,231,235,0.92);
+.app-navbar .navbar-brand {
+    color: var(--text);
 }
 
-.navbar .nav-link {
-    color: rgba(229,231,235,0.78);
+.app-navbar .navbar-nav .nav-link {
+    color: var(--nav-link);
     border-radius: 999px;
     padding: .45rem .75rem;
 }
 
-.navbar .nav-link:hover {
-    color: #fff;
-    background: rgba(59,130,246,0.10);
+.app-navbar .navbar-nav .nav-link:hover {
+    color: var(--text);
+    background: var(--nav-link-hover-bg);
 }
 
-.navbar .nav-link:focus-visible{
+.app-navbar .navbar-nav .nav-link:focus-visible{
     outline: none;
-    box-shadow: 0 0 0 .2rem rgba(59,130,246,0.25);
+    box-shadow: 0 0 0 .2rem var(--focus-ring);
 }
 
-.navbar .nav-link.active,
-.navbar .nav-link.nav-link-active {
-    color: #fff;
-    background: rgba(59,130,246,0.16);
-    box-shadow: inset 0 0 0 1px rgba(59,130,246,0.35);
+.app-navbar .navbar-nav .nav-link.active,
+.app-navbar .navbar-nav .nav-link.nav-link-active {
+    color: var(--text);
+    background: var(--nav-link-active-bg);
+    box-shadow: inset 0 0 0 1px var(--nav-link-active-border);
 }
 
 /* toggler focus */
-.navbar-toggler{
-    border-color: rgba(255,255,255,0.14);
+.app-navbar .navbar-toggler{
+    border-color: var(--border);
 }
-.navbar-toggler:focus{
-    box-shadow: 0 0 0 .2rem rgba(59,130,246,0.25);
+.app-navbar .navbar-toggler:focus{
+    box-shadow: 0 0 0 .2rem var(--focus-ring);
 }
 
 /* nav wrapper */
@@ -135,8 +262,8 @@ body {
         margin-top: .75rem;
         padding: .75rem;
         border-radius: 16px;
-        background: rgba(255,255,255,0.03);
-        border: 1px solid rgba(255,255,255,0.10);
+        background: var(--surface-1);
+        border: 1px solid var(--border);
     }
 }
 
@@ -158,7 +285,7 @@ body {
 
 .nav-divider{
     height: 1px;
-    background: rgba(255,255,255,0.10);
+    background: var(--border);
 }
 
 .userbar-text{
@@ -176,7 +303,7 @@ body {
     font-weight: 600;
     letter-spacing: .2px;
     border: 1px solid transparent;
-    background: rgba(255,255,255,0.06);
+    background: var(--badge-bg);
 }
 
 .app-badge-deputy {
@@ -193,14 +320,14 @@ body {
 
 /* ===== Alerts (dark-friendly) ===== */
 .alert {
-    border-color: rgba(255,255,255,0.10);
+    border-color: var(--border);
 }
 
 /* Bootstrap .alert-secondary по умолчанию слишком светлый -> делаем "surface" */
 .alert-secondary {
-    --bs-alert-bg: rgba(255,255,255,0.04);
-    --bs-alert-color: rgba(229,231,235,0.92);
-    --bs-alert-border-color: rgba(255,255,255,0.12);
+    --bs-alert-bg: var(--alert-secondary-bg);
+    --bs-alert-color: var(--alert-secondary-color);
+    --bs-alert-border-color: var(--alert-secondary-border);
     background: var(--bs-alert-bg);
     color: var(--bs-alert-color);
     border-color: var(--bs-alert-border-color);
@@ -217,7 +344,7 @@ body {
 .card {
     box-shadow: var(--shadow-soft);
     backdrop-filter: blur(6px);
-    border-color: rgba(255,255,255,0.10);
+    border-color: var(--border);
 }
 
 /* ===== Buttons: сделать outline читаемее ===== */
@@ -226,24 +353,39 @@ body {
 .btn-outline-warning,
 .btn-outline-primary,
 .btn-outline-secondary {
-    border-color: rgba(255,255,255,0.18);
+    border-color: var(--border-strong);
+}
+
+.btn-outline-light {
+    color: var(--text);
+}
+.btn-outline-light:hover {
+    color: var(--text);
+    background: var(--surface-quiet-2);
+}
+
+/* ===== Input groups ===== */
+.input-group-text {
+    background: var(--surface-5);
+    border-color: var(--border);
+    color: var(--text-muted-strong);
 }
 
 /* ===== Forms (make bootstrap inputs dark) ===== */
 .form-control,
 .form-select {
-    background-color: rgba(2,6,23,0.65);
+    background-color: var(--surface-6);
     color: var(--text);
     border-color: var(--border);
 }
 
-.form-control::placeholder { color: rgba(156,163,175,0.75); }
+.form-control::placeholder { color: var(--text-muted); }
 
 .form-control:focus,
 .form-select:focus {
-    background-color: rgba(2,6,23,0.75);
-    border-color: rgba(59,130,246,0.55);
-    box-shadow: 0 0 0 .2rem rgba(59,130,246,0.20);
+    background-color: var(--surface-7);
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 .2rem var(--focus-ring-soft);
     color: var(--text);
 }
 
@@ -252,7 +394,7 @@ input.form-control:-webkit-autofill,
 input.form-control:-webkit-autofill:hover,
 input.form-control:-webkit-autofill:focus {
     -webkit-text-fill-color: var(--text);
-    -webkit-box-shadow: 0 0 0px 1000px rgba(2,6,23,0.80) inset;
+    -webkit-box-shadow: 0 0 0px 1000px var(--surface-7) inset;
     transition: background-color 9999s ease-in-out 0s;
 }
 
@@ -274,11 +416,13 @@ input[type="number"] {
     --bs-table-bg: transparent;
     --bs-table-color: var(--text);
     --bs-table-border-color: var(--border);
+    --bs-table-striped-bg: var(--table-striped-bg);
+    --bs-table-hover-bg: var(--table-hover-bg);
 }
 
 .table thead th {
-    background: rgba(2,6,23,0.85);
-    color: rgba(229,231,235,0.75);
+    background: var(--surface-8);
+    color: var(--table-head-color);
     position: sticky;
     top: 0;
     z-index: 2;
@@ -286,7 +430,7 @@ input[type="number"] {
 
 /* лучше видимость линий */
 .table > :not(caption) > * > * {
-    border-color: rgba(255,255,255,0.10);
+    border-color: var(--table-border);
 }
 
 /* ===== Modals (bootstrap) ===== */
@@ -296,7 +440,7 @@ input[type="number"] {
 
 .modal-header,
 .modal-footer {
-    border-color: rgba(255,255,255,0.10);
+    border-color: var(--border);
 }
 
 .modal .btn-close {
@@ -304,6 +448,14 @@ input[type="number"] {
 }
 .modal .btn-close:hover {
     opacity: 1;
+}
+
+:root[data-theme="dark"] .modal .btn-close {
+    filter: invert(1) grayscale(1);
+}
+
+:root[data-theme="light"] .modal .btn-close-white {
+    filter: none;
 }
 
 /* FIX: backdrop-filter может ломать fixed-позиционирование модалок (клик “только снизу” при скролле).
@@ -323,7 +475,7 @@ body.modal-open .app-header {
 
 /* ===== Utility: muted ===== */
 .muted, .text-muted {
-    color: rgba(229,231,235,0.65) !important;
+    color: var(--text-muted-soft) !important;
 }
 
 /* ===== Legacy helpers that are safe (НЕ трогаем .modal) ===== */
@@ -343,8 +495,8 @@ body.modal-open .app-header {
     align-items: center;
     padding: 4px 8px;
     border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.10);
-    background: rgba(2,6,23,0.45);
+    border: 1px solid var(--border);
+    background: var(--surface-4);
     font-size: 0.82rem;
     line-height: 1.1;
 }
@@ -369,7 +521,7 @@ body.modal-open .app-header {
 .app-panel {
   border: 0 !important;
   box-shadow: none !important;
-  background: rgba(255,255,255,0.03) !important;
+  background: var(--surface-1) !important;
 }
 
 .table-dark {
@@ -378,7 +530,49 @@ body.modal-open .app-header {
 
 /* Subtle badges helper (Bootstrap-like) */
 .text-bg-secondary-subtle {
-    color: rgba(229,231,235,0.85) !important;
-    background: rgba(255,255,255,0.08) !important;
-    border: 1px solid rgba(255,255,255,0.10);
+    color: var(--text-muted-strong) !important;
+    background: var(--secondary-subtle-bg) !important;
+    border: 1px solid var(--secondary-subtle-border);
+}
+
+.bg-dark {
+    background-color: var(--bg-elevated) !important;
+    color: var(--text);
+}
+
+.border-secondary-subtle {
+    border-color: var(--border) !important;
+}
+
+.table-dark {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--text);
+    --bs-table-striped-color: var(--text);
+    --bs-table-striped-bg: var(--table-striped-bg);
+    --bs-table-hover-color: var(--text);
+    --bs-table-hover-bg: var(--table-hover-bg);
+    --bs-table-active-color: var(--text);
+    --bs-table-active-bg: var(--table-hover-bg);
+    --bs-table-border-color: var(--table-border);
+    color: var(--text);
+}
+
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    white-space: nowrap;
+}
+
+.theme-toggle__icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.theme-toggle__text {
+    font-size: .85rem;
+}
+
+:root[data-theme="light"] .navbar-dark .navbar-toggler-icon {
+    filter: invert(1) grayscale(1);
 }

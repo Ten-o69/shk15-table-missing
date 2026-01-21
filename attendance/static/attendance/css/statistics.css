@@ -10,7 +10,7 @@
 
 /* Tables */
 .app-table-responsive {
-  border: 1px solid rgba(255,255,255,0.10);
+  border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
 }
@@ -23,30 +23,30 @@
 
 /* Accordion in dark theme */
 .app-accordion-item {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.10);
+  background: var(--surface-quiet);
+  border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
   margin-bottom: 10px;
 }
 
 .app-accordion-btn {
-  background: rgba(2,6,23,0.55);
-  color: rgba(229,231,235,0.92);
+  background: var(--surface-5);
+  color: var(--text);
 }
 
 .app-accordion-btn:focus {
-  box-shadow: 0 0 0 .2rem rgba(59,130,246,0.20);
+  box-shadow: 0 0 0 .2rem var(--focus-ring-soft);
 }
 
 .accordion-button:not(.collapsed) {
-  background: rgba(59,130,246,0.10);
-  color: #fff;
+  background: var(--accent-hover);
+  color: var(--text);
 }
 
 .accordion-body {
-  background: rgba(2,6,23,0.35);
-  border-top: 1px solid rgba(255,255,255,0.08);
+  background: var(--surface-2);
+  border-top: 1px solid var(--border-weak);
 }
 
 /* Daily mini-summary */
@@ -56,8 +56,8 @@
   gap: .5rem .75rem;
   padding: .6rem .75rem;
   border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
   font-size: .92rem;
 }
 
@@ -68,8 +68,8 @@
   gap: 6px;
 }
 .pill {
-  background: rgba(2,6,23,0.55);
-  border-color: rgba(255,255,255,0.10);
+  background: var(--surface-5);
+  border-color: var(--border);
 }
 
 /* Filters: tighten input-group icon */
@@ -117,12 +117,12 @@
 }
 
 .section-toggle:hover{
-  background: rgba(255,255,255,0.02);
+  background: var(--surface-quiet);
 }
 
 .section-toggle:focus{
   outline: none;
-  box-shadow: 0 0 0 .2rem rgba(59,130,246,0.20);
+  box-shadow: 0 0 0 .2rem var(--focus-ring-soft);
 }
 
 .section-toggle__chev{
@@ -134,4 +134,106 @@
 .section-toggle[aria-expanded="true"] .section-toggle__chev{
   transform: rotate(180deg);
   opacity: 1;
+}
+
+/* Light theme polish */
+:root[data-theme="light"] .app-table-responsive {
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .section-toggle{
+  padding: .6rem .65rem;
+  border: 1px solid var(--border-weak);
+  background: rgba(37,99,235,0.06);
+}
+
+:root[data-theme="light"] .section-toggle:hover{
+  background: rgba(37,99,235,0.12);
+}
+
+:root[data-theme="light"] .app-accordion-item {
+  background: #ffffff;
+  border-color: var(--border-weak);
+  box-shadow: 0 10px 24px rgba(15,23,42,0.08);
+}
+
+:root[data-theme="light"] .app-accordion-btn {
+  background: rgba(37,99,235,0.10);
+  color: var(--text);
+}
+
+:root[data-theme="light"] .accordion-button:not(.collapsed) {
+  background: rgba(37,99,235,0.18);
+  color: var(--text);
+}
+
+:root[data-theme="light"] .accordion-body {
+  background: #f8fafc;
+}
+
+:root[data-theme="light"] .summary-mini {
+  background: rgba(37,99,235,0.08);
+  border-color: rgba(37,99,235,0.18);
+}
+
+/* Light theme: make table filter buttons more expressive */
+:root[data-theme="light"] [data-table-type-btn].btn-outline-light {
+  background: #ffffff;
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: 0 6px 12px rgba(15,23,42,0.08);
+}
+
+:root[data-theme="light"] [data-table-type-btn].btn-outline-light:hover {
+  background: rgba(37,99,235,0.08);
+  border-color: rgba(37,99,235,0.25);
+  color: var(--text);
+}
+
+:root[data-theme="light"] [data-table-type-btn].btn-outline-light.active,
+:root[data-theme="light"] [data-table-type-btn].btn-outline-light:active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 8px 16px rgba(37,99,235,0.28);
+}
+
+/* Daily section readability in light theme */
+:root[data-theme="light"] #sec-daily .app-accordion-item {
+  background: #ffffff;
+  border-color: var(--border-weak);
+}
+
+:root[data-theme="light"] #sec-daily .app-accordion-btn {
+  background: #ffffff;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-weak);
+}
+
+:root[data-theme="light"] #sec-daily .app-accordion-btn:not(.collapsed) {
+  background: rgba(37,99,235,0.12);
+}
+
+:root[data-theme="light"] #sec-daily .app-accordion-btn .text-secondary {
+  color: var(--text-muted) !important;
+}
+
+:root[data-theme="light"] #sec-daily .accordion-body {
+  background: #f8fafc;
+  color: var(--text);
+}
+
+:root[data-theme="light"] #sec-daily .summary-mini {
+  background: #ffffff;
+  border-color: var(--border);
+}
+
+:root[data-theme="light"] #sec-daily .summary-mini .muted {
+  color: var(--text-muted) !important;
+}
+
+:root[data-theme="light"] #sec-daily .pill {
+  background: rgba(37,99,235,0.08);
+  border-color: rgba(37,99,235,0.18);
+  color: var(--text);
 }

@@ -13,9 +13,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(59,130,246,0.12);
-    border: 1px solid rgba(59,130,246,0.25);
-    color: rgba(229,231,235,0.95);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    color: var(--text);
 }
 .login-icon i {
     font-size: 1.1rem;
@@ -23,9 +23,9 @@
 
 /* Input-group в тёмной теме */
 .input-group-text {
-    background: rgba(2,6,23,0.55);
-    border-color: rgba(255,255,255,0.10);
-    color: rgba(229,231,235,0.85);
+    background: var(--surface-5);
+    border-color: var(--border);
+    color: var(--text-muted-strong);
 }
 
 /* Карточка по центру на широких экранах */
@@ -45,7 +45,7 @@
     line-height: 1;
     cursor: pointer;
 
-    color: rgba(229, 231, 235, 0.85);
+    color: var(--text-muted-strong);
     opacity: 0.85;
 }
 
@@ -55,7 +55,7 @@
 
 .password-toggle:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 .2rem rgba(59,130,246,0.25);
+    box-shadow: 0 0 0 .2rem var(--focus-ring);
     border-radius: 10px;
 }
 

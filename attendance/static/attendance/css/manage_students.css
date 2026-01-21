@@ -3,10 +3,19 @@
 /* Таблица удобнее в тёмной теме + не ломаем адаптив */
 .manage-table {
   min-width: 980px;
+  color: var(--text);
 }
 
 @media (max-width: 720px) {
   .manage-table { min-width: 940px; }
+}
+
+.manage-table .fw-semibold {
+  color: var(--text);
+}
+
+.manage-table .text-secondary {
+  color: var(--text-muted) !important;
 }
 
 /*!* Инактивные строки *!*/
@@ -34,9 +43,9 @@
 
 /* Плашки-счётчики */
 .app-counter-pill {
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(2,6,23,0.35);
-  color: rgba(229,231,235,0.85);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted-strong);
 }
 
 /* Строки выбора типа льготы (модалка) */
@@ -46,15 +55,15 @@
   gap: .65rem;
   padding: .55rem .65rem;
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(2,6,23,0.35);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
   cursor: pointer;
   user-select: none;
 }
 
 .priv-type-row:hover {
-  background: rgba(59,130,246,0.08);
-  border-color: rgba(59,130,246,0.22);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover-border);
 }
 
 .priv-type-row input[type="checkbox"] {
@@ -70,6 +79,6 @@
 
 /* При фокусе — видно */
 .priv-type-row:has(input:focus) {
-  outline: 2px solid rgba(59,130,246,0.35);
+  outline: 2px solid var(--focus-ring-strong);
   outline-offset: 2px;
 }
