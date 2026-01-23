@@ -1,13 +1,20 @@
 from collections import defaultdict
+from datetime import datetime, timedelta
 from functools import wraps
+from html import escape
+from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth import login as auth_login
 from django.db.models import Sum, Count, Q, Prefetch, Case, When, IntegerField
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect
 from django.utils import timezone
+
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill, Font, Alignment
 
 from database.models import (
     ClassRoom,
@@ -18,7 +25,6 @@ from database.models import (
     SubstituteAccessToken,
 )
 from school_attendance.settings import DEBUG
-from datetime import datetime, timedelta
 
 
 def deny_substitute_access(view_func):
@@ -531,7 +537,9 @@ def statistics(request):
     ordered_days = sorted(days_map.items(), key=lambda x: x[0], reverse=True)
 
     day_totals = {}
+    day_reported_counts = {}
     for day, records in days_map.items():
+        day_reported_counts[day] = len(records)
         total_present_auto = sum(r.present_count_auto for r in records)
         total_present_reported = sum(r.present_count_reported for r in records)
         total_unexcused = sum(r.unexcused_absent_count for r in records)
@@ -621,10 +629,13 @@ def statistics(request):
         'disabled': sum(r['disabled'] for r in privileged_types_by_class),
     }
     privileged_types_totals['total'] = sum(r['total'] for r in privileged_types_by_class)
+    total_classes_count = monthly_qs.values('class_room_id').distinct().count()
 
     context = {
         'ordered_days': ordered_days,
         'day_totals': day_totals,
+        'day_reported_counts': day_reported_counts,
+        'total_classes_count': total_classes_count,
         'monthly_by_class': monthly_by_class,
         'per_student': per_student,
         'month': month,
@@ -633,6 +644,269 @@ def statistics(request):
         'privileged_types_totals': privileged_types_totals,
     }
     return render(request, 'attendance/statistics.html', context)
+
+
+def _build_daily_export_rows(day):
+    classes = ClassRoom.objects.all().order_by('name')
+    summaries = AttendanceSummary.objects.filter(
+        date=day
+    ).select_related('class_room').prefetch_related(
+        'absent_students__student'
+    )
+    summary_by_class = {s.class_room_id: s for s in summaries}
+
+    rows = []
+    for class_room in classes:
+        summary = summary_by_class.get(class_room.id)
+        if not summary:
+            rows.append({
+                'class_name': class_room.name,
+                'present_count_reported': '-',
+                'unexcused_count': '-',
+                'unexcused_students': 'Нет данных',
+                'orvi_count': '-',
+                'orvi_students': 'Нет данных',
+                'other_disease_count': '-',
+                'other_disease_students': 'Нет данных',
+                'family_count': '-',
+                'family_students': 'Нет данных',
+                'all_absent_students': 'Нет данных',
+                'has_data': False,
+            })
+            continue
+
+        absents = list(summary.absent_students.all())
+        has_absents = bool(absents)
+        by_reason = {
+            'unexcused': [],
+            'orvi': [],
+            'other_disease': [],
+            'family': [],
+        }
+        for absent in absents:
+            if absent.reason in by_reason:
+                by_reason[absent.reason].append(absent.student.full_name)
+
+        all_absent = [absent.student.full_name for absent in absents]
+
+        def format_names(names):
+            if not has_absents:
+                return 'Нет данных'
+            if not names:
+                return ''
+            return ', '.join(names)
+
+        rows.append({
+            'class_name': class_room.name,
+            'present_count_reported': summary.present_count_reported,
+            'unexcused_count': summary.unexcused_absent_count,
+            'unexcused_students': format_names(by_reason['unexcused']),
+            'orvi_count': summary.orvi_count,
+            'orvi_students': format_names(by_reason['orvi']),
+            'other_disease_count': summary.other_disease_count,
+            'other_disease_students': format_names(by_reason['other_disease']),
+            'family_count': summary.family_reason_count,
+            'family_students': format_names(by_reason['family']),
+            'all_absent_students': format_names(all_absent),
+            'has_data': True,
+        })
+
+    return rows
+
+
+def _export_daily_excel(day, rows):
+    headers = [
+        'Класс',
+        'Пришло',
+        'Неув.',
+        'Ученики (неув.)',
+        'ОРВИ',
+        'Ученики (ОРВИ)',
+        'Другие',
+        'Ученики (другие)',
+        'Семейные',
+        'Ученики (сем.)',
+        'Все отсутствующие',
+    ]
+    data_keys = [
+        'class_name',
+        'present_count_reported',
+        'unexcused_count',
+        'unexcused_students',
+        'orvi_count',
+        'orvi_students',
+        'other_disease_count',
+        'other_disease_students',
+        'family_count',
+        'family_students',
+        'all_absent_students',
+    ]
+    wrap_cols = {4, 6, 8, 10, 11}
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = day.strftime('%d.%m.%Y')
+
+    ws.append(headers)
+    header_font = Font(bold=True)
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.font = header_font
+        cell.alignment = Alignment(wrap_text=True, vertical='top')
+
+    ok_fill = PatternFill(fill_type='solid', start_color='C6EFCE', end_color='C6EFCE')
+    miss_fill = PatternFill(fill_type='solid', start_color='FFC7CE', end_color='FFC7CE')
+
+    for row_idx, row in enumerate(rows, start=2):
+        ws.append([row[key] for key in data_keys])
+        fill = ok_fill if row['has_data'] else miss_fill
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.fill = fill
+            cell.alignment = Alignment(
+                wrap_text=(col_idx in wrap_cols),
+                vertical='top'
+            )
+
+    widths = {
+        1: 12,
+        2: 10,
+        3: 10,
+        4: 38,
+        5: 8,
+        6: 38,
+        7: 10,
+        8: 38,
+        9: 10,
+        10: 38,
+        11: 42,
+    }
+    for col_idx, width in widths.items():
+        ws.column_dimensions[chr(64 + col_idx)].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f'daily_statistics_{day.strftime("%Y-%m-%d")}.xlsx'
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _export_daily_word(day, rows):
+    headers = [
+        'Класс',
+        'Пришло',
+        'Неув.',
+        'Ученики (неув.)',
+        'ОРВИ',
+        'Ученики (ОРВИ)',
+        'Другие',
+        'Ученики (другие)',
+        'Семейные',
+        'Ученики (сем.)',
+        'Все отсутствующие',
+    ]
+    data_keys = [
+        'class_name',
+        'present_count_reported',
+        'unexcused_count',
+        'unexcused_students',
+        'orvi_count',
+        'orvi_students',
+        'other_disease_count',
+        'other_disease_students',
+        'family_count',
+        'family_students',
+        'all_absent_students',
+    ]
+
+    lines = [
+        '<!DOCTYPE html>',
+        '<html>',
+        '<head>',
+        '<meta charset="utf-8">',
+        '<style>',
+        '@page WordSection1{size:29.7cm 21.0cm;mso-page-orientation:landscape;margin:1cm;}',
+        'div.WordSection1{page:WordSection1;}',
+        'body{font-family:"Times New Roman",serif;font-size:14pt;}',
+        'h2{margin:0 0 8px 0;font-size:16pt;}',
+        'table{border-collapse:collapse;width:100%;table-layout:fixed;}',
+        'th,td{border:1px solid #444;padding:4px;vertical-align:top;font-size:14pt;word-wrap:break-word;overflow-wrap:break-word;}',
+        'th{background:#f1f1f1;}',
+        '.row-ok{background:#e6f4ea;}',
+        '.row-miss{background:#fde7e9;}',
+        '</style>',
+        '</head>',
+        '<body>',
+        '<div class="WordSection1">',
+        f'<h2>Дневная статистика за {escape(day.strftime("%d.%m.%Y"))}</h2>',
+        '<table>',
+        '<colgroup>'
+        '<col style="width:6%;">'
+        '<col style="width:6%;">'
+        '<col style="width:6%;">'
+        '<col style="width:12%;">'
+        '<col style="width:5%;">'
+        '<col style="width:12%;">'
+        '<col style="width:5%;">'
+        '<col style="width:12%;">'
+        '<col style="width:5%;">'
+        '<col style="width:12%;">'
+        '<col style="width:19%;">'
+        '</colgroup>',
+        '<thead><tr>' + ''.join(f'<th>{escape(h)}</th>' for h in headers) + '</tr></thead>',
+        '<tbody>',
+    ]
+
+    for row in rows:
+        row_class = 'row-ok' if row['has_data'] else 'row-miss'
+        cells = ''.join(
+            f'<td>{escape(str(row[key]))}</td>'
+            for key in data_keys
+        )
+        lines.append(f'<tr class="{row_class}">{cells}</tr>')
+
+    lines.extend(['</tbody>', '</table>', '</div>', '</body>', '</html>'])
+    html = '\n'.join(lines)
+
+    filename = f'daily_statistics_{day.strftime("%Y-%m-%d")}.doc'
+    response = HttpResponse(html, content_type='application/msword; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+@deny_substitute_access
+@user_passes_test(is_deputy)
+def export_daily_statistics(request):
+    date_raw = (request.GET.get('date') or '').strip()
+    fmt = (request.GET.get('format') or '').strip().lower()
+
+    day = None
+    if date_raw:
+        try:
+            day = datetime.strptime(date_raw, '%Y-%m-%d').date()
+        except ValueError:
+            try:
+                day = datetime.fromisoformat(date_raw).date()
+            except ValueError:
+                day = None
+
+    if not day:
+        return HttpResponseBadRequest('Некорректная дата.')
+
+    if fmt not in ('excel', 'word'):
+        return HttpResponseBadRequest('Некорректный формат.')
+
+    rows = _build_daily_export_rows(day)
+    if fmt == 'excel':
+        return _export_daily_excel(day, rows)
+    return _export_daily_word(day, rows)
 
 
 @login_required
