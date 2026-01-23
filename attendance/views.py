@@ -629,7 +629,7 @@ def statistics(request):
         'disabled': sum(r['disabled'] for r in privileged_types_by_class),
     }
     privileged_types_totals['total'] = sum(r['total'] for r in privileged_types_by_class)
-    total_classes_count = monthly_qs.values('class_room_id').distinct().count()
+    total_classes_count = ClassRoom.objects.all().count()
 
     context = {
         'ordered_days': ordered_days,
