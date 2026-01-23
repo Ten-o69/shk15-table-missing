@@ -689,8 +689,19 @@ def manage_students(request):
     order_fields = sort_map.get(sort, sort_map['class_asc'])
     students = students.order_by(*order_fields)
 
+    def ensure_privilege_types():
+        existing = set(
+            PrivilegeType.objects.filter(
+                code__in=Student.PrivilegeType.values
+            ).values_list('code', flat=True)
+        )
+        missing = [code for code in Student.PrivilegeType.values if code not in existing]
+        for code in missing:
+            PrivilegeType.objects.get_or_create(code=code)
+
     if request.method == 'POST':
         allowed_types = set(Student.PrivilegeType.values)
+        ensure_privilege_types()
 
         action = (request.POST.get('action') or '').strip()
 
