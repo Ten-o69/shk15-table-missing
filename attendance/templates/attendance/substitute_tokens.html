@@ -116,178 +116,102 @@
             </div>
           </div>
 
-          <!-- DESKTOP TABLE (lg+) -->
-          <div class="d-none d-lg-block">
-            <div class="app-table-shell">
-              <div class="table-responsive">
-                <table class="table table-dark table-hover table-sm align-middle mb-0 tokens-table">
-                  <thead>
-                    <tr>
-                      <th class="text-nowrap">Класс</th>
-                      <th>КР</th>
-                      <th>Выдал</th>
-                      <th class="text-nowrap">Создан</th>
-                      <th class="text-nowrap">Истекает</th>
-                      <th class="text-nowrap">Длит.</th>
-                      <th class="text-nowrap">Статус</th>
-                      <th class="text-nowrap">Действия</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for t in tokens %}
-                      <tr>
-                        <td class="fw-semibold text-nowrap">{{ t.class_room.name }}</td>
-                        <td>
-                          {% if t.class_room.teacher %}
-                            {{ t.class_room.teacher.get_full_name|default:t.class_room.teacher.username }}
-                          {% else %}
-                            <span class="muted">не задан</span>
-                          {% endif %}
-                        </td>
-                        <td>{{ t.issued_by.get_full_name|default:t.issued_by.username|default:"—" }}</td>
-                        <td class="text-nowrap">{{ t.created_at|date:"d.m.Y H:i" }}</td>
-                        <td class="text-nowrap">{{ t.expires_at|date:"d.m.Y H:i" }}</td>
-                        <td class="text-nowrap"><span class="text-secondary small">{{ t.ttl_seconds }} сек</span></td>
-                        <td class="text-nowrap">
-                          {% if t.revoked_at %}
-                            <span class="badge text-bg-danger">Отозван</span>
-                          {% elif t.is_active %}
-                            <span class="badge text-bg-success">Активен</span>
-                          {% else %}
-                            <span class="badge text-bg-danger">Истёк</span>
-                          {% endif %}
-                        </td>
-
-                        <td class="text-nowrap">
-                          <div class="token-actions">
-                            <!-- Пересоздать -->
-                            <form method="post" class="d-inline">
-                              {% csrf_token %}
-                              <input type="hidden" name="action" value="recreate">
-                              <input type="hidden" name="token_id" value="{{ t.id }}">
-                              <button class="btn btn-sm btn-outline-light" type="submit">
-                                <i class="bi bi-arrow-repeat me-1"></i>Пересоздать
-                              </button>
-                            </form>
-
-                            <!-- Отозвать -->
-                            {% if not t.revoked_at and t.is_active %}
-                              <form method="post" class="d-inline">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="revoke">
-                                <input type="hidden" name="token_id" value="{{ t.id }}">
-                                <button class="btn btn-sm btn-outline-light" type="submit">
-                                  <i class="bi bi-slash-circle me-1"></i>Отозвать
-                                </button>
-                              </form>
-                            {% endif %}
-
-                            <!-- Удалить -->
-                            <form method="post" class="d-inline">
-                              {% csrf_token %}
-                              <input type="hidden" name="action" value="delete">
-                              <input type="hidden" name="token_id" value="{{ t.id }}">
-                              <button class="btn btn-sm btn-outline-danger"
-                                      type="submit"
-                                      onclick="return confirm('Удалить токен полностью? Он исчезнет из списка, восстановить нельзя.');">
-                                <i class="bi bi-trash me-1"></i>Удалить
-                              </button>
-                            </form>
-                          </div>
-                        </td>
-                      </tr>
-                    {% empty %}
-                      <tr>
-                        <td colspan="8" class="text-secondary">Токенов пока нет.</td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
+          <div class="app-table" data-app-table>
+            <div class="app-table__toolbar">
+              <div class="app-table__toolbar-actions ms-auto">
+                <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
+                  <i class="bi bi-clipboard me-1"></i> Скопировать
+                </button>
+                <span class="app-table__copy-status" data-copy-status></span>
               </div>
             </div>
-          </div>
+            <div class="table-responsive app-table__scroll">
+              <table class="table table-dark table-hover table-sm align-middle mb-0 tokens-table app-table__table app-table--stack"
+                     data-app-table-target
+                     data-sort-columns="class,text,text,date,date,number,text,none">
+                <thead>
+                  <tr>
+                    <th class="text-nowrap">Класс</th>
+                    <th>КР</th>
+                    <th>Выдал</th>
+                    <th class="text-nowrap">Создан</th>
+                    <th class="text-nowrap">Истекает</th>
+                    <th class="text-nowrap">Длит.</th>
+                    <th class="text-nowrap">Статус</th>
+                    <th class="text-nowrap">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for t in tokens %}
+                    <tr>
+                      <td class="fw-semibold text-nowrap stack-head-cell" data-label="Класс">{{ t.class_room.name }}</td>
+                      <td data-label="КР">
+                        {% if t.class_room.teacher %}
+                          {{ t.class_room.teacher.get_full_name|default:t.class_room.teacher.username }}
+                        {% else %}
+                          <span class="muted">не задан</span>
+                        {% endif %}
+                      </td>
+                      <td data-label="Выдал">{{ t.issued_by.get_full_name|default:t.issued_by.username|default:"—" }}</td>
+                      <td class="text-nowrap" data-label="Создан">{{ t.created_at|date:"d.m.Y H:i" }}</td>
+                      <td class="text-nowrap" data-label="Истекает">{{ t.expires_at|date:"d.m.Y H:i" }}</td>
+                      <td class="text-nowrap" data-label="Длит."><span class="text-secondary small">{{ t.ttl_seconds }} сек</span></td>
+                      <td class="text-nowrap" data-label="Статус">
+                        {% if t.revoked_at %}
+                          <span class="badge text-bg-danger">Отозван</span>
+                        {% elif t.is_active %}
+                          <span class="badge text-bg-success">Активен</span>
+                        {% else %}
+                          <span class="badge text-bg-danger">Истёк</span>
+                        {% endif %}
+                      </td>
 
-          <!-- MOBILE / TABLET CARDS (< lg) -->
-          <div class="d-lg-none">
-            {% for t in tokens %}
-              <div class="token-card">
-                <div class="d-flex align-items-start justify-content-between gap-2">
-                  <div>
-                    <div class="fw-semibold">{{ t.class_room.name }}</div>
-                    <div class="text-secondary small">
-                      {% if t.class_room.teacher %}
-                        КР: {{ t.class_room.teacher.get_full_name|default:t.class_room.teacher.username }}
-                      {% else %}
-                        КР: <span class="muted">не задан</span>
-                      {% endif %}
-                    </div>
-                  </div>
+                      <td class="text-nowrap" data-label="Действия">
+                        <div class="token-actions">
+                          <!-- Пересоздать -->
+                          <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="recreate">
+                            <input type="hidden" name="token_id" value="{{ t.id }}">
+                            <button class="btn btn-sm btn-outline-light" type="submit">
+                              <i class="bi bi-arrow-repeat me-1"></i>Пересоздать
+                            </button>
+                          </form>
 
-                  <div class="text-end">
-                    {% if t.revoked_at %}
-                      <span class="badge text-bg-danger">Отозван</span>
-                    {% elif t.is_active %}
-                      <span class="badge text-bg-success">Активен</span>
-                    {% else %}
-                      <span class="badge text-bg-danger">Истёк</span>
-                    {% endif %}
-                    <div class="text-secondary small mt-1">{{ t.ttl_seconds }} сек</div>
-                  </div>
-                </div>
+                          <!-- Отозвать -->
+                          {% if not t.revoked_at and t.is_active %}
+                            <form method="post" class="d-inline">
+                              {% csrf_token %}
+                              <input type="hidden" name="action" value="revoke">
+                              <input type="hidden" name="token_id" value="{{ t.id }}">
+                              <button class="btn btn-sm btn-outline-light" type="submit">
+                                <i class="bi bi-slash-circle me-1"></i>Отозвать
+                              </button>
+                            </form>
+                          {% endif %}
 
-                <div class="token-meta mt-2">
-                  <div class="token-meta-item">
-                    <div class="text-secondary small">Выдал</div>
-                    <div class="small">{{ t.issued_by.get_full_name|default:t.issued_by.username|default:"—" }}</div>
-                  </div>
-                  <div class="token-meta-item">
-                    <div class="text-secondary small">Создан</div>
-                    <div class="small text-nowrap">{{ t.created_at|date:"d.m.Y H:i" }}</div>
-                  </div>
-                  <div class="token-meta-item">
-                    <div class="text-secondary small">Истекает</div>
-                    <div class="small text-nowrap">{{ t.expires_at|date:"d.m.Y H:i" }}</div>
-                  </div>
-                </div>
-
-                <div class="token-actions token-actions-mobile mt-3">
-                  <form method="post" class="d-inline">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="recreate">
-                    <input type="hidden" name="token_id" value="{{ t.id }}">
-                    <button class="btn btn-sm btn-outline-light" type="submit">
-                      <i class="bi bi-arrow-repeat me-1"></i>Пересоздать
-                    </button>
-                  </form>
-
-                  {% if not t.revoked_at and t.is_active %}
-                    <form method="post" class="d-inline">
-                      {% csrf_token %}
-                      <input type="hidden" name="action" value="revoke">
-                      <input type="hidden" name="token_id" value="{{ t.id }}">
-                      <button class="btn btn-sm btn-outline-light" type="submit">
-                        <i class="bi bi-slash-circle me-1"></i>Отозвать
-                      </button>
-                    </form>
-                  {% endif %}
-
-                  <form method="post" class="d-inline">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="delete">
-                    <input type="hidden" name="token_id" value="{{ t.id }}">
-                    <button class="btn btn-sm btn-outline-danger"
-                            type="submit"
-                            onclick="return confirm('Удалить токен полностью? Он исчезнет из списка, восстановить нельзя.');">
-                      <i class="bi bi-trash me-1"></i>Удалить
-                    </button>
-                  </form>
-                </div>
-              </div>
-            {% empty %}
-              <div class="alert alert-secondary mb-0" role="alert">
-                Токенов пока нет.
-              </div>
-            {% endfor %}
+                          <!-- Удалить -->
+                          <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="token_id" value="{{ t.id }}">
+                            <button class="btn btn-sm btn-outline-danger"
+                                    type="submit"
+                                    onclick="return confirm('Удалить токен полностью? Он исчезнет из списка, восстановить нельзя.');">
+                              <i class="bi bi-trash me-1"></i>Удалить
+                            </button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                  {% empty %}
+                    <tr data-table-empty="1">
+                      <td colspan="8" class="text-secondary">Токенов пока нет.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
 
         </div>

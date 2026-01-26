@@ -433,6 +433,200 @@ input[type="number"] {
     border-color: var(--table-border);
 }
 
+/* ===== App tables ===== */
+.app-table {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--surface-1);
+}
+
+.app-table__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem .75rem;
+    padding: .6rem .75rem;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+}
+
+.app-table__toolbar-actions {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+.app-table__copy-status {
+    font-size: .82rem;
+    color: var(--text-muted-soft);
+    min-height: 1.1rem;
+}
+
+.app-table__scroll {
+    overflow: auto;
+}
+
+.app-table__table {
+    margin-bottom: 0;
+}
+
+.app-table__table th[data-sort] {
+    cursor: pointer;
+    position: relative;
+    padding-right: 2.6rem;
+    transition: color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.app-table__table th[data-sort]:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 .2rem var(--focus-ring-soft);
+}
+
+.app-table__table th[data-sort]::after {
+    content: "\21C5";
+    position: absolute;
+    right: .6rem;
+    top: .45rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    line-height: 1.55rem;
+    text-align: center;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-5);
+    color: var(--text-muted-soft);
+    font-size: .95rem;
+    font-weight: 700;
+}
+
+.app-table__table th[data-sort][data-sort-dir="asc"]::after {
+    content: "\2191";
+    color: var(--text);
+    background: var(--accent-soft);
+    border-color: var(--accent-border);
+}
+
+.app-table__table th[data-sort][data-sort-dir="desc"]::after {
+    content: "\2193";
+    color: var(--text);
+    background: var(--accent-soft);
+    border-color: var(--accent-border);
+}
+
+.app-table__table th[data-sort]:hover::after {
+    color: var(--text);
+    background: var(--accent-soft);
+    border-color: var(--accent-border);
+}
+
+.app-table__table th[data-sort][data-sort-dir] {
+    color: var(--text);
+    box-shadow: inset 0 -2px 0 var(--primary);
+}
+
+.app-table__table td,
+.app-table__table th {
+    user-select: text;
+}
+
+/* Responsive stack view */
+@media (max-width: 991.98px){
+    .app-table__scroll{
+        overflow: visible;
+    }
+
+    .app-table__table.app-table--stack thead{
+        display: none;
+    }
+
+    .app-table__table.app-table--stack tbody,
+    .app-table__table.app-table--stack tfoot{
+        display: block;
+    }
+
+    .app-table__table.app-table--stack tbody tr,
+    .app-table__table.app-table--stack tfoot tr{
+        display: block;
+        margin-bottom: 12px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: var(--surface-1);
+    }
+
+    .app-table__table.app-table--stack.table-striped > tbody > tr:nth-of-type(odd) > *{
+        --bs-table-accent-bg: transparent;
+        background-color: transparent;
+    }
+
+    .app-table__table.app-table--stack tbody tr:hover,
+    .app-table__table.app-table--stack tfoot tr:hover{
+        background: var(--surface-quiet-2);
+    }
+
+    .app-table__table.app-table--stack tbody tr > td,
+    .app-table__table.app-table--stack tfoot tr > td{
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: .65rem .75rem;
+        border-top: 1px solid var(--border-weak);
+        min-width: 0;
+    }
+
+    .app-table__table.app-table--stack tbody tr > td::before,
+    .app-table__table.app-table--stack tfoot tr > td::before{
+        content: attr(data-label);
+        flex: 0 0 44%;
+        max-width: 44%;
+        font-size: .75rem;
+        line-height: 1.15;
+        color: var(--text-muted-soft);
+        padding-top: .15rem;
+        white-space: normal;
+    }
+
+    .app-table__table.app-table--stack tbody tr > td > *,
+    .app-table__table.app-table--stack tfoot tr > td > *{
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .app-table__table.app-table--stack tbody tr > td.stack-head-cell,
+    .app-table__table.app-table--stack tfoot tr > td.stack-head-cell{
+        display: block;
+        padding: .75rem .75rem;
+        border-top: 0;
+        background: var(--surface-4);
+    }
+
+    .app-table__table.app-table--stack tbody tr > td.stack-head-cell::before,
+    .app-table__table.app-table--stack tfoot tr > td.stack-head-cell::before{
+        content: none;
+    }
+
+    .app-table__table.app-table--stack .pill,
+    .app-table__table.app-table--stack .pill-list,
+    .app-table__table.app-table--stack .selected-students,
+    .app-table__table.app-table--stack .selected-orvi-students,
+    .app-table__table.app-table--stack .selected-other-students,
+    .app-table__table.app-table--stack .selected-family-students,
+    .app-table__table.app-table--stack .selected-all-students{
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .app-table__table.app-table--stack .form-control-sm{
+        padding-top: .35rem;
+        padding-bottom: .35rem;
+    }
+}
+
 /* ===== Modals (bootstrap) ===== */
 .modal-content {
     border-radius: 16px;

@@ -9,7 +9,7 @@
 }
 
 /* Tables */
-.app-table-responsive {
+.app-table {
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
@@ -179,7 +179,7 @@
 }
 
 /* Light theme polish */
-:root[data-theme="light"] .app-table-responsive {
+:root[data-theme="light"] .app-table {
   background: #ffffff;
 }
 

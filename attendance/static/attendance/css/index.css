@@ -1,5 +1,11 @@
 /* index.css */
 
+/* Главная страница: контент на всю ширину экрана */
+.content.container-xxl {
+    max-width: 100%;
+    width: 100%;
+}
+
 /* поле поиска справа */
 .main-search{
     min-width: min(420px, 100%);
@@ -79,17 +85,23 @@
     .summary-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Таблицы */
-.app-table-responsive {
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-}
-
 .table-main thead th {
     vertical-align: bottom;
     padding-top: .9rem;
     padding-bottom: .75rem;
+}
+
+.table-main {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.table-main th,
+.table-main td {
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
 }
 
 .pill {
@@ -180,96 +192,3 @@
 }
 
 #all-absent-hint b { font-weight: 700; }
-
-/* =========================================
-   TABLE -> CARDS (mobile/tablet)
-========================================= */
-
-@media (max-width: 991.98px){
-
-    .app-table-responsive{
-        overflow: visible;
-        border-radius: 0;
-        border: 0;
-    }
-
-    .table-stack thead{
-        display: none;
-    }
-
-    .table-stack tbody{
-        display: block;
-    }
-
-    .table-stack tbody tr{
-        display: block;
-        margin-bottom: 12px;
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        overflow: hidden;
-        background: var(--surface-1);
-    }
-
-    .table-stack.table-striped > tbody > tr:nth-of-type(odd) > *{
-        --bs-table-accent-bg: transparent;
-        background-color: transparent;
-    }
-
-    .table-stack tbody tr:hover{
-        background: var(--surface-quiet-2);
-    }
-
-    .table-stack tbody tr > td{
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 12px;
-        padding: .65rem .75rem;
-        border-top: 1px solid var(--border-weak);
-        min-width: 0;
-    }
-
-    .table-stack tbody tr > td::before{
-        content: attr(data-label);
-        flex: 0 0 44%;
-        max-width: 44%;
-        font-size: .75rem;
-        line-height: 1.15;
-        color: var(--text-muted-soft);
-        padding-top: .15rem;
-        white-space: normal;
-    }
-
-    .table-stack tbody tr > td > *{
-        flex: 1 1 auto;
-        min-width: 0;
-    }
-
-    .table-stack tbody tr > td.stack-head-cell{
-        display: block;
-        padding: .75rem .75rem;
-        border-top: 0;
-        background: var(--surface-4);
-    }
-
-    .table-stack tbody tr > td.stack-head-cell::before{
-        content: none;
-    }
-
-    .table-stack .pill,
-    .table-stack .pill-list,
-    .table-stack .selected-students,
-    .table-stack .selected-orvi-students,
-    .table-stack .selected-other-students,
-    .table-stack .selected-family-students,
-    .table-stack .selected-all-students{
-        min-width: 0;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
-
-    .table-stack .form-control-sm{
-        padding-top: .35rem;
-        padding-bottom: .35rem;
-    }
-}

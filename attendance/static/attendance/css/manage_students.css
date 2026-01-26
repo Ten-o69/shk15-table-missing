@@ -2,12 +2,11 @@
 
 /* Таблица удобнее в тёмной теме + не ломаем адаптив */
 .manage-table {
-  min-width: 980px;
   color: var(--text);
 }
 
-@media (max-width: 720px) {
-  .manage-table { min-width: 940px; }
+@media (min-width: 992px) {
+  .manage-table { min-width: 980px; }
 }
 
 .manage-table .fw-semibold {

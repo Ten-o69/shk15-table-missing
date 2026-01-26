@@ -92,16 +92,6 @@
   }
 }
 
-/* table shell */
-.app-table-shell{
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  overflow: hidden;
-}
-.app-table-shell .table-responsive{
-  overflow: auto;
-}
-
 /* make table compact */
 .tokens-table{
   font-size: .93rem;
@@ -134,37 +124,3 @@
   stroke: currentColor;
 }
 
-/* mobile cards */
-.token-card{
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  border-radius: 14px;
-  padding: .9rem;
-  margin-bottom: .75rem;
-
-  max-width: 100%;
-  min-width: 0;
-}
-
-.token-meta{
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: .5rem;
-}
-@media (min-width: 576px){
-  .token-meta{
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: .75rem;
-  }
-}
-
-.token-meta-item{
-  border: 1px solid var(--border-weak);
-  background: var(--surface-2);
-  border-radius: 12px;
-  padding: .6rem .65rem;
-
-  /* чтобы длинные значения не вылазили */
-  min-width: 0;
-  overflow-wrap: anywhere;
-}

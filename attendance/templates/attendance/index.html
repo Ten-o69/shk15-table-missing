@@ -72,27 +72,38 @@
             <input type="hidden" name="row_count" value="{{ classes|length }}">
             <input type="hidden" name="edit_class" value="{{ edit_class_id|default:'' }}">
 
-            <div class="table-responsive app-table-responsive">
-                <table class="table table-dark table-striped table-hover align-middle mb-0 table-main table-stack">
+            <div class="app-table" data-app-table>
+                <div class="app-table__toolbar">
+                    <div class="app-table__toolbar-actions ms-auto">
+                        <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
+                            <i class="bi bi-clipboard me-1"></i> Скопировать
+                        </button>
+                        <span class="app-table__copy-status" data-copy-status></span>
+                    </div>
+                </div>
+                <div class="table-responsive app-table__scroll">
+                    <table class="table table-dark table-striped table-hover align-middle mb-0 table-main app-table__table app-table--stack"
+                           data-app-table-target
+                           data-sort-columns="class,number,number,text,number,text,number,text,number,text,text,number">
                     <thead>
                     <tr>
                         <th class="text-nowrap">Класс</th>
-                        <th>По списку<br><span class="th-sub">(кол-во учеников в классе)</span></th>
+                        <th>По списку<br><span class="th-sub">всего учеников</span></th>
 
-                        <th>Неуважительные<br><span class="th-sub">(ввести количество)</span></th>
-                        <th>Ученики (неуваж.)<br><span class="th-sub">(выбор из списка)</span></th>
+                        <th>Неуважительные<br><span class="th-sub">количество</span></th>
+                        <th>Ученики<br><span class="th-sub">неув.</span></th>
 
-                        <th>ОРВИ<br><span class="th-sub">(ввести количество)</span></th>
-                        <th>Ученики (ОРВИ)<br><span class="th-sub">(выбор из списка)</span></th>
+                        <th>ОРВИ<br><span class="th-sub">количество</span></th>
+                        <th>Ученики<br><span class="th-sub">ОРВИ</span></th>
 
-                        <th>Другие<br><span class="th-sub">(ввести количество)</span></th>
-                        <th>Ученики (другие)<br><span class="th-sub">(выбор из списка)</span></th>
+                        <th>Другие причины<br><span class="th-sub">количество</span></th>
+                        <th>Ученики<br><span class="th-sub">другие</span></th>
 
-                        <th>Семейные<br><span class="th-sub">(ввести количество)</span></th>
-                        <th>Ученики (сем.)<br><span class="th-sub">(выбор из списка)</span></th>
+                        <th>Семейные<br><span class="th-sub">количество</span></th>
+                        <th>Ученики<br><span class="th-sub">сем.</span></th>
 
-                        <th>Все отсутствующие<br><span class="th-sub">(уваж.+неуваж.)</span></th>
-                        <th>Пришло по факту<br><span class="th-sub">(считается)</span></th>
+                        <th>Все отсутствующие<br><span class="th-sub">уваж.+неув.</span></th>
+                        <th>Пришло по факту<br><span class="th-sub">считается авто</span></th>
                     </tr>
                     </thead>
 
@@ -468,6 +479,7 @@
                     </tbody>
                 </table>
             </div>
+        </div>
 
             {% if classes %}
                 <div class="d-flex justify-content-end mt-3">
@@ -503,8 +515,19 @@
             </div>
         </div>
 
-        <div class="table-responsive app-table-responsive">
-            <table class="table table-dark table-striped table-hover align-middle mb-0 table-main priv-table table-stack">
+        <div class="app-table" data-app-table>
+            <div class="app-table__toolbar">
+                <div class="app-table__toolbar-actions ms-auto">
+                    <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
+                        <i class="bi bi-clipboard me-1"></i> Скопировать
+                    </button>
+                    <span class="app-table__copy-status" data-copy-status></span>
+                </div>
+            </div>
+            <div class="table-responsive app-table__scroll">
+                <table class="table table-dark table-striped table-hover align-middle mb-0 table-main priv-table app-table__table app-table--stack"
+                       data-app-table-target
+                       data-sort-columns="class,number,number,none">
                 <thead>
                 <tr>
                     <th class="text-nowrap">Класс</th>
@@ -540,6 +563,7 @@
                 </tbody>
             </table>
         </div>
+    </div>
 
         {% for class in classes %}
             <div id="students-container-{{ class.id }}" class="hidden-students-container">

@@ -148,8 +148,19 @@
     </form>
 
     <!-- Таблица -->
-    <div class="table-responsive app-table-responsive" id="students-grid">
-      <table class="table table-dark table-striped table-hover align-middle mb-0 manage-table">
+    <div class="app-table" id="students-grid" data-app-table>
+      <div class="app-table__toolbar">
+        <div class="app-table__toolbar-actions ms-auto">
+          <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
+            <i class="bi bi-clipboard me-1"></i> Скопировать
+          </button>
+          <span class="app-table__copy-status" data-copy-status></span>
+        </div>
+      </div>
+      <div class="table-responsive app-table__scroll">
+        <table class="table table-dark table-striped table-hover align-middle mb-0 manage-table app-table__table app-table--stack"
+               data-app-table-target
+               data-sort-columns="none,class,text,none,none,none">
         <thead>
           <tr>
             <th style="width:120px;">Выбор</th>
@@ -171,7 +182,7 @@
                 data-priv-type="{% if types %}{% for t in types %}{{ t.code }} {{ t.get_code_display }}{% if not forloop.last %} {% endif %}{% endfor %}{% elif s.is_privileged %}без типа{% endif %}">
 
               <!-- Выбор -->
-              <td>
+              <td data-label="Выбор">
                 <div class="form-check d-flex align-items-center gap-2">
                   <input class="form-check-input student-check"
                          type="checkbox"
@@ -186,7 +197,7 @@
               </td>
 
               <!-- Класс -->
-              <td>
+              <td class="stack-head-cell" data-label="Класс">
                 <span class="badge rounded-pill text-bg-primary">
                   <i class="bi bi-mortarboard me-1"></i>
                   <strong>{{ s.class_room.name }}</strong>
@@ -194,7 +205,7 @@
               </td>
 
               <!-- ФИО -->
-              <td>
+              <td data-label="Ученик">
                 <div class="d-flex gap-2 align-items-center flex-wrap">
                   <span class="text-secondary"><i class="bi bi-person"></i></span>
                   <span class="fw-semibold">{{ s.full_name }}</span>
@@ -202,7 +213,7 @@
               </td>
 
               <!-- Статусы -->
-              <td>
+              <td data-label="Статусы">
                 <div class="d-flex gap-2 flex-wrap align-items-center">
                   {% if s.is_active %}
                     <span class="badge rounded-pill text-bg-success" title="Ученик активен">
@@ -223,7 +234,7 @@
               </td>
 
               <!-- Льгота -->
-              <td>
+              <td data-label="Льготы (типы)">
                 <div class="d-flex gap-2 flex-wrap align-items-center">
                   {% if types %}
                     {% for t in types %}
@@ -248,7 +259,7 @@
               </td>
 
               <!-- Действия -->
-              <td>
+              <td data-label="Действия">
                 <div class="d-flex gap-2 flex-wrap">
                   {% if s.is_active %}
                     <button type="button"
@@ -278,6 +289,7 @@
         </tbody>
       </table>
     </div>
+  </div>
 
     <!-- Одна скрытая форма для удаления/восстановления одного ученика -->
     <form method="post" id="one-action-form" style="display:none;">

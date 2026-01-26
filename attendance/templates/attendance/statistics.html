@@ -189,8 +189,19 @@
 
       <div class="collapse" id="sec-privileged_types" data-section-collapse="privileged_types">
         {% if privileged_types_by_class %}
-          <div class="table-responsive app-table-responsive mt-2">
-            <table class="table table-dark table-hover table-sm align-middle mb-0">
+          <div class="app-table mt-2" data-app-table>
+            <div class="app-table__toolbar">
+              <div class="app-table__toolbar-actions ms-auto">
+                <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
+                  <i class="bi bi-clipboard me-1"></i> Скопировать
+                </button>
+                <span class="app-table__copy-status" data-copy-status></span>
+              </div>
+            </div>
+            <div class="table-responsive app-table__scroll">
+              <table class="table table-dark table-hover table-sm align-middle mb-0 app-table__table app-table--stack"
+                     data-app-table-target
+                     data-sort-columns="class,number,number,number,number,number">
               <thead>
                 <tr>
                   <th class="text-nowrap">Класс</th>
@@ -204,27 +215,28 @@
               <tbody>
                 {% for r in privileged_types_by_class %}
                   <tr data-row-type="privileged_types" data-class-name="{{ r.class_name|lower }}">
-                    <td class="fw-semibold">{{ r.class_name }}</td>
-                    <td>{{ r.svo }}</td>
-                    <td>{{ r.multi }}</td>
-                    <td>{{ r.low_income }}</td>
-                    <td>{{ r.disabled }}</td>
-                    <td class="fw-semibold">{{ r.total }}</td>
+                    <td class="fw-semibold stack-head-cell" data-label="Класс">{{ r.class_name }}</td>
+                    <td data-label="СВО">{{ r.svo }}</td>
+                    <td data-label="Многодетные">{{ r.multi }}</td>
+                    <td data-label="Малоимущие">{{ r.low_income }}</td>
+                    <td data-label="ОВЗ">{{ r.disabled }}</td>
+                    <td class="fw-semibold" data-label="Итого">{{ r.total }}</td>
                   </tr>
                 {% endfor %}
               </tbody>
               <tfoot class="table-footer">
                 <tr>
-                  <td class="fw-semibold">Итого</td>
-                  <td>{{ privileged_types_totals.svo }}</td>
-                  <td>{{ privileged_types_totals.multi }}</td>
-                  <td>{{ privileged_types_totals.low_income }}</td>
-                  <td>{{ privileged_types_totals.disabled }}</td>
-                  <td class="fw-semibold">{{ privileged_types_totals.total }}</td>
+                  <td class="fw-semibold stack-head-cell" data-label="Класс">Итого</td>
+                  <td data-label="СВО">{{ privileged_types_totals.svo }}</td>
+                  <td data-label="Многодетные">{{ privileged_types_totals.multi }}</td>
+                  <td data-label="Малоимущие">{{ privileged_types_totals.low_income }}</td>
+                  <td data-label="ОВЗ">{{ privileged_types_totals.disabled }}</td>
+                  <td class="fw-semibold" data-label="Итого">{{ privileged_types_totals.total }}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
+        </div>
         {% else %}
           <div class="alert alert-secondary mt-2 mb-0" role="alert">
             Нет льготников с указанным типом.
@@ -376,8 +388,19 @@
                       </div>
                     </div>
 
-                    <div class="table-responsive app-table-responsive">
-                      <table class="table table-dark table-hover table-sm align-middle mb-0">
+                    <div class="app-table" data-app-table>
+                      <div class="app-table__toolbar">
+                        <div class="app-table__toolbar-actions ms-auto">
+                          <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
+                            <i class="bi bi-clipboard me-1"></i> Скопировать
+                          </button>
+                          <span class="app-table__copy-status" data-copy-status></span>
+                        </div>
+                      </div>
+                      <div class="table-responsive app-table__scroll">
+                        <table class="table table-dark table-hover table-sm align-middle mb-0 app-table__table app-table--stack"
+                               data-app-table-target
+                               data-sort-columns="class,number,number,none,number,none,number,none,number,none,none">
                         <thead>
                           <tr>
                             <th class="text-nowrap">Класс</th>
@@ -403,11 +426,11 @@
                             <tr data-row-type="daily"
                                 data-class-name="{{ s.class_room.name|lower }}"
                                 data-unexcused="{{ s.unexcused_absent_count }}">
-                              <td class="fw-semibold">{{ s.class_room.name }}</td>
-                              <td>{{ s.present_count_reported }}</td>
+                              <td class="fw-semibold stack-head-cell" data-label="Класс">{{ s.class_room.name }}</td>
+                              <td data-label="Пришло">{{ s.present_count_reported }}</td>
 
-                              <td>{{ s.unexcused_absent_count }}</td>
-                              <td>
+                              <td data-label="Неув.">{{ s.unexcused_absent_count }}</td>
+                              <td data-label="Ученики (неув.)">
                                 {% if s.absent_students.all %}
                                   <ul class="pill-list">
                                     {% for a in s.absent_students.all %}
@@ -421,8 +444,8 @@
                                 {% endif %}
                               </td>
 
-                              <td>{{ s.orvi_count }}</td>
-                              <td>
+                              <td data-label="ОРВИ">{{ s.orvi_count }}</td>
+                              <td data-label="Ученики (ОРВИ)">
                                 {% if s.absent_students.all %}
                                   <ul class="pill-list">
                                     {% for a in s.absent_students.all %}
@@ -436,8 +459,8 @@
                                 {% endif %}
                               </td>
 
-                              <td>{{ s.other_disease_count }}</td>
-                              <td>
+                              <td data-label="Другие">{{ s.other_disease_count }}</td>
+                              <td data-label="Ученики (другие)">
                                 {% if s.absent_students.all %}
                                   <ul class="pill-list">
                                     {% for a in s.absent_students.all %}
@@ -451,8 +474,8 @@
                                 {% endif %}
                               </td>
 
-                              <td>{{ s.family_reason_count }}</td>
-                              <td>
+                              <td data-label="Семейные">{{ s.family_reason_count }}</td>
+                              <td data-label="Ученики (сем.)">
                                 {% if s.absent_students.all %}
                                   <ul class="pill-list">
                                     {% for a in s.absent_students.all %}
@@ -466,7 +489,7 @@
                                 {% endif %}
                               </td>
 
-                              <td>
+                              <td data-label="Все отсутствующие">
                                 {% if s.absent_students.all %}
                                   <ul class="pill-list">
                                     {% for a in s.absent_students.all %}
@@ -482,6 +505,7 @@
                         </tbody>
                       </table>
                     </div>
+                  </div>
 
                   </div>
                 </div>
@@ -516,8 +540,19 @@
 
       <div class="collapse" id="sec-by_class" data-section-collapse="by_class">
         {% if monthly_by_class %}
-          <div class="table-responsive app-table-responsive mt-2">
-            <table class="table table-dark table-hover table-sm align-middle mb-0">
+          <div class="app-table mt-2" data-app-table>
+            <div class="app-table__toolbar">
+              <div class="app-table__toolbar-actions ms-auto">
+                <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
+                  <i class="bi bi-clipboard me-1"></i> Скопировать
+                </button>
+                <span class="app-table__copy-status" data-copy-status></span>
+              </div>
+            </div>
+            <div class="table-responsive app-table__scroll">
+              <table class="table table-dark table-hover table-sm align-middle mb-0 app-table__table app-table--stack"
+                     data-app-table-target
+                     data-sort-columns="class,number,number,number,number,number">
               <thead>
                 <tr>
                   <th class="text-nowrap">Класс</th>
@@ -533,17 +568,18 @@
                   <tr data-row-type="by_class"
                       data-class-name="{{ row.class_room__name|lower }}"
                       data-total-unexcused="{{ row.total_unexcused|default:0 }}">
-                    <td class="fw-semibold">{{ row.class_room__name }}</td>
-                    <td>{{ row.total_present_reported|default:"0" }}</td>
-                    <td>{{ row.total_unexcused|default:"0" }}</td>
-                    <td>{{ row.total_orvi|default:"0" }}</td>
-                    <td>{{ row.total_other_disease|default:"0" }}</td>
-                    <td>{{ row.total_family|default:"0" }}</td>
+                    <td class="fw-semibold stack-head-cell" data-label="Класс">{{ row.class_room__name }}</td>
+                    <td data-label="Всего пришедших">{{ row.total_present_reported|default:"0" }}</td>
+                    <td data-label="Всего неув.">{{ row.total_unexcused|default:"0" }}</td>
+                    <td data-label="ОРВИ">{{ row.total_orvi|default:"0" }}</td>
+                    <td data-label="Другие">{{ row.total_other_disease|default:"0" }}</td>
+                    <td data-label="Семейные">{{ row.total_family|default:"0" }}</td>
                   </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
+        </div>
         {% else %}
           <div class="alert alert-secondary mt-2 mb-0" role="alert">
             Нет данных для построения сводной таблицы.
@@ -572,8 +608,19 @@
 
       <div class="collapse" id="sec-by_student" data-section-collapse="by_student">
         {% if per_student %}
-          <div class="table-responsive app-table-responsive mt-2">
-            <table class="table table-dark table-hover table-sm align-middle mb-0">
+          <div class="app-table mt-2" data-app-table>
+            <div class="app-table__toolbar">
+              <div class="app-table__toolbar-actions ms-auto">
+                <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
+                  <i class="bi bi-clipboard me-1"></i> Скопировать
+                </button>
+                <span class="app-table__copy-status" data-copy-status></span>
+              </div>
+            </div>
+            <div class="table-responsive app-table__scroll">
+              <table class="table table-dark table-hover table-sm align-middle mb-0 app-table__table app-table--stack"
+                     data-app-table-target
+                     data-sort-columns="class,text,number">
               <thead>
                 <tr>
                   <th class="text-nowrap">Класс</th>
@@ -587,14 +634,15 @@
                       data-class-name="{{ row.student__class_room__name|lower }}"
                       data-student-name="{{ row.student__full_name|lower }}"
                       data-absence-count="{{ row.absence_count }}">
-                    <td class="fw-semibold">{{ row.student__class_room__name }}</td>
-                    <td>{{ row.student__full_name }}</td>
-                    <td>{{ row.absence_count }}</td>
+                    <td class="fw-semibold stack-head-cell" data-label="Класс">{{ row.student__class_room__name }}</td>
+                    <td data-label="Ученик">{{ row.student__full_name }}</td>
+                    <td data-label="Кол-во неявок">{{ row.absence_count }}</td>
                   </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
+        </div>
         {% else %}
           <div class="alert alert-secondary mt-2 mb-0" role="alert">
             Нет данных по отсутствиям учеников за выбранный месяц.
