@@ -40,6 +40,18 @@
     return a.localeCompare(b, "ru", { sensitivity: "base" });
   }
 
+  function getCompare() {
+    if (state.sortCompare) return state.sortCompare;
+    if (
+      state.sortMode === "class" &&
+      window.ClassSort &&
+      typeof window.ClassSort.compareClassNames === "function"
+    ) {
+      return window.ClassSort.compareClassNames;
+    }
+    return compareRu;
+  }
+
   function normalizeItems(items) {
     return (items || []).map((item, idx) => {
       const label = String(item.label || "").trim();
@@ -86,10 +98,11 @@
 
   function getSorted(items, sortValue) {
     const list = [...items];
+    const compare = getCompare();
     if (sortValue === "name_asc") {
-      list.sort((a, b) => compareRu(a.label, b.label));
+      list.sort((a, b) => compare(a.label, b.label));
     } else if (sortValue === "name_desc") {
-      list.sort((a, b) => compareRu(b.label, a.label));
+      list.sort((a, b) => compare(b.label, a.label));
     } else {
       list.sort((a, b) => a.__index - b.__index);
     }
@@ -202,6 +215,8 @@
       onApply: cfg.onApply || null,
       onSecondary: cfg.onSecondary || null,
       onClose: cfg.onClose || null,
+      sortMode: cfg.sortMode || "label",
+      sortCompare: typeof cfg.sortCompare === "function" ? cfg.sortCompare : null,
       defaultSort: cfg.defaultSort || "default",
       emptyText: cfg.emptyText || "Нет данных.",
     };

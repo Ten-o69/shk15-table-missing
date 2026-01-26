@@ -25,6 +25,7 @@ from database.models import (
     SubstituteAccessToken,
 )
 from school_attendance.settings import DEBUG
+from .utils import class_sort_key
 
 
 def deny_substitute_access(view_func):
@@ -86,7 +87,7 @@ def index(request):
 
     if is_substitute and substitute_class_id:
         # ✅ заменяющий видит только класс, на который выдан токен
-        classes = ClassRoom.objects.filter(id=substitute_class_id).order_by('name')
+        classes = ClassRoom.objects.filter(id=substitute_class_id)
 
         # ✅ режем права: никакого "завуча" даже если аккаунт в группе
         user_is_deputy = False
@@ -94,9 +95,11 @@ def index(request):
         user_is_teacher = True
     else:
         if user_is_deputy or user_is_teacher:
-            classes = ClassRoom.objects.filter(staff=user).order_by('name')
+            classes = ClassRoom.objects.filter(staff=user)
         else:
             classes = ClassRoom.objects.none()
+
+    classes = sorted(classes, key=class_sort_key)
 
     summaries = AttendanceSummary.objects.filter(
         date=today,
@@ -531,8 +534,11 @@ def statistics(request):
     ).select_related('class_room')
 
     days_map = defaultdict(list)
-    for s in monthly_qs.order_by('-date', 'class_room__name'):
+    for s in monthly_qs.order_by('-date'):
         days_map[s.date].append(s)
+
+    for records in days_map.values():
+        records.sort(key=lambda r: class_sort_key(r.class_room.name))
 
     ordered_days = sorted(days_map.items(), key=lambda x: x[0], reverse=True)
 
@@ -556,7 +562,7 @@ def statistics(request):
             'total_family': total_family,
         }
 
-    monthly_by_class = monthly_qs.values(
+    monthly_by_class = list(monthly_qs.values(
         'class_room__id',
         'class_room__name'
     ).annotate(
@@ -566,7 +572,8 @@ def statistics(request):
         total_orvi=Sum('orvi_count'),
         total_other_disease=Sum('other_disease_count'),
         total_family=Sum('family_reason_count'),
-    ).order_by('class_room__name')
+    ))
+    monthly_by_class.sort(key=lambda r: class_sort_key(r['class_room__name']))
 
     absences_qs = AbsentStudent.objects.filter(
         attendance__date__year=year,
@@ -574,16 +581,18 @@ def statistics(request):
         reason=AbsentStudent.Reason.UNEXCUSED,
     ).select_related('student', 'attendance__class_room')
 
-    per_student = absences_qs.values(
+    per_student = list(absences_qs.values(
         'student__id',
         'student__full_name',
         'student__class_room__name'
     ).annotate(
         absence_count=Count('id')
-    ).order_by('student__class_room__name', 'student__full_name')
+    ))
+    per_student.sort(key=lambda r: (r['student__full_name'] or '').lower())
+    per_student.sort(key=lambda r: class_sort_key(r['student__class_room__name']))
 
     # ===== ЛЬГОТНИКИ ПО ТИПАМ (по классам) =====
-    all_classes = ClassRoom.objects.all().order_by('name')
+    all_classes = sorted(ClassRoom.objects.all(), key=class_sort_key)
 
     # считаем только активных
     priv_qs = Student.objects.filter(
@@ -647,7 +656,7 @@ def statistics(request):
 
 
 def _build_daily_export_rows(day):
-    classes = ClassRoom.objects.all().order_by('name')
+    classes = sorted(ClassRoom.objects.all(), key=class_sort_key)
     summaries = AttendanceSummary.objects.filter(
         date=day
     ).select_related('class_room').prefetch_related(
@@ -917,9 +926,9 @@ def manage_students(request):
     user_is_teacher = user.groups.filter(name='Учитель').exists()
 
     if user_is_deputy or user.is_superuser:
-        allowed_classes = ClassRoom.objects.all().order_by('name')
+        allowed_classes = sorted(ClassRoom.objects.all(), key=class_sort_key)
     else:
-        allowed_classes = ClassRoom.objects.filter(staff=user).order_by('name')
+        allowed_classes = sorted(ClassRoom.objects.filter(staff=user), key=class_sort_key)
 
     q = (request.GET.get('q') or '').strip()
     class_id = (request.GET.get('class_id') or '').strip()
@@ -954,14 +963,27 @@ def manage_students(request):
             Q(class_room__name__icontains=q)
         )
 
-    sort_map = {
-        'class_asc':  ('class_room__name', 'full_name'),
-        'class_desc': ('-class_room__name', 'full_name'),
-        'name_asc':   ('full_name', 'class_room__name'),
-        'name_desc':  ('-full_name', 'class_room__name'),
-    }
-    order_fields = sort_map.get(sort, sort_map['class_asc'])
-    students = students.order_by(*order_fields)
+    valid_sorts = {'class_asc', 'class_desc', 'name_asc', 'name_desc'}
+    if sort not in valid_sorts:
+        sort = 'class_asc'
+
+    students = list(students)
+
+    def student_name_key(item):
+        return (item.full_name or '').lower()
+
+    if sort == 'class_asc':
+        students.sort(key=student_name_key)
+        students.sort(key=lambda item: class_sort_key(item.class_room))
+    elif sort == 'class_desc':
+        students.sort(key=student_name_key)
+        students.sort(key=lambda item: class_sort_key(item.class_room), reverse=True)
+    elif sort == 'name_asc':
+        students.sort(key=lambda item: class_sort_key(item.class_room))
+        students.sort(key=student_name_key)
+    else:
+        students.sort(key=lambda item: class_sort_key(item.class_room))
+        students.sort(key=student_name_key, reverse=True)
 
     def ensure_privilege_types():
         existing = set(
@@ -1182,7 +1204,7 @@ def substitute_login(request):
 @deny_substitute_access
 @user_passes_test(is_deputy)
 def substitute_tokens(request):
-    classes = ClassRoom.objects.select_related('teacher').order_by('name')
+    classes = sorted(ClassRoom.objects.select_related('teacher'), key=class_sort_key)
 
     def ttl_from_post(post):
         # значения из модалки
@@ -1335,9 +1357,13 @@ def substitute_tokens(request):
     # ✅ достаем токен один раз после редиректа
     created_token = request.session.pop("created_token", None)
 
-    tokens = SubstituteAccessToken.objects.select_related(
+    tokens_qs = SubstituteAccessToken.objects.select_related(
         'class_room', 'issued_by', 'class_room__teacher'
     ).order_by('-created_at')[:200]
+
+    tokens = list(tokens_qs)
+    tokens.sort(key=lambda t: t.created_at, reverse=True)
+    tokens.sort(key=lambda t: class_sort_key(t.class_room))
 
     context = {
         'classes': classes,
