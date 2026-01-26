@@ -97,64 +97,83 @@
   });
 
   // ---------------------------------
-  // Privilege type modal (Bootstrap)
+  // Unified table modal: privilege types
   // ---------------------------------
-  const modalEl = $("#priv-type-modal");
-  const subtitle = $("#priv-type-subtitle");
-  const applyBtn = $("#priv-type-apply");
-  const clearBtn = $("#priv-type-clear");
-
+  const tableModal = window.TableModal;
   const form = $("#priv-type-form");
   const formStudentId = $("#priv-type-student-id");
   const formValue = $("#priv-type-value");
 
+  const sortOptions = [
+    { value: "default", label: "По порядку" },
+    { value: "name_asc", label: "Название А-Я" },
+    { value: "name_desc", label: "Название Я-А" },
+  ];
+
+  const privTypes = [
+    { id: "svo", label: "СВО" },
+    { id: "multi", label: "Многодетные" },
+    { id: "low_income", label: "Малоимущие" },
+    { id: "disabled", label: "ОВЗ" },
+  ];
+
   let currentStudentId = null;
 
-  const hasBootstrap = () =>
-    typeof window !== "undefined" && window.bootstrap && window.bootstrap.Modal;
+  function openModal(studentId, studentName, currentTypes) {
+    if (!tableModal) return;
 
-  if (!modalEl || !hasBootstrap()) {
-    // Если вдруг Bootstrap JS не подхватился — просто не ломаем страницу.
-    updateVisibleCount();
-    updateSelectedCount();
-    return;
-  }
-
-  const BS = window.bootstrap;
-  const getModalInstance = () =>
-    BS.Modal.getInstance(modalEl) || new BS.Modal(modalEl, {
-      backdrop: false,
-      keyboard: true,
-      focus: true
-    });
-
-  const bsModal = getModalInstance();
-
-  const openModal = (studentId, studentName, currentTypes) => {
     currentStudentId = String(studentId || "");
     if (!currentStudentId) return;
 
-    if (subtitle) {
-      subtitle.textContent = studentName ? `Ученик: ${studentName}` : "";
-    }
-
-    // reset + set current
-    $$('input[name="priv_type"]', modalEl).forEach(r => (r.checked = false));
-    const typeList = (currentTypes || "")
+    const selected = (currentTypes || "")
       .split(",")
       .map(t => t.trim())
       .filter(Boolean);
-    if (typeList.length) {
-      typeList.forEach((t) => {
-        const box = $(`input[name="priv_type"][value="${t}"]`, modalEl);
-        if (box) box.checked = true;
-      });
-    }
 
-    bsModal.show();
-  };
+    const items = privTypes.map(t => ({ id: t.id, label: t.label }));
 
-  // open buttons
+    tableModal.open({
+      title: "Типы льгот",
+      subtitle: studentName ? `Ученик: ${studentName}` : "",
+      items,
+      selectable: true,
+      selectedIds: selected,
+      searchPlaceholder: "Поиск по типам...",
+      sortOptions,
+      defaultSort: "default",
+      applyLabel: "Сохранить",
+      cancelLabel: "Отмена",
+      secondaryLabel: "Снять льготу",
+      size: "md",
+      onApply: (selectedIds) => {
+        if (!form || !formStudentId || !formValue) return true;
+        if (!currentStudentId) return true;
+
+        if (!selectedIds.length) {
+          alert("Выберите один или несколько типов льготы или нажмите «Снять льготу».");
+          return false;
+        }
+
+        formStudentId.value = currentStudentId;
+        formValue.value = selectedIds.join(",");
+        form.submit();
+        return true;
+      },
+      onSecondary: () => {
+        if (!form || !formStudentId || !formValue) return true;
+        if (!currentStudentId) return true;
+
+        formStudentId.value = currentStudentId;
+        formValue.value = "";
+        form.submit();
+        return true;
+      },
+      onClose: () => {
+        currentStudentId = null;
+      },
+    });
+  }
+
   document.addEventListener("click", (e) => {
     const btn = e.target.closest(".js-open-priv-type");
     if (!btn) return;
@@ -164,43 +183,6 @@
     const cur = btn.dataset.currentTypes || "";
 
     openModal(sid, name, cur);
-  });
-
-  // apply
-  if (applyBtn) {
-    applyBtn.addEventListener("click", () => {
-      if (!form || !formStudentId || !formValue) return;
-      if (!currentStudentId) return;
-
-      const selected = $$('input[name="priv_type"]:checked', modalEl);
-      if (!selected.length) {
-        alert("Выберите один или несколько типов льготы или нажмите «Снять льготу».");
-        return;
-      }
-
-      formStudentId.value = currentStudentId;
-      formValue.value = selected.map(el => el.value).join(",");
-      form.submit();
-    });
-  }
-
-  // clear
-  if (clearBtn) {
-    clearBtn.addEventListener("click", () => {
-      if (!form || !formStudentId || !formValue) return;
-      if (!currentStudentId) return;
-
-      formStudentId.value = currentStudentId;
-      formValue.value = "";
-      form.submit();
-    });
-  }
-
-  // reset state on close
-  modalEl.addEventListener("hidden.bs.modal", () => {
-    currentStudentId = null;
-    if (subtitle) subtitle.textContent = "";
-    $$('input[name="priv_type"]', modalEl).forEach(r => (r.checked = false));
   });
 
   // initial counters

@@ -522,173 +522,129 @@
     }
 
     // -----------------------------
-    // Students modal
+    // Unified table modal: students list
     // -----------------------------
     (function initStudentsModal() {
-        const modalEl = document.getElementById("students-modal");
-        if (!modalEl) return;
+        const tableModal = window.TableModal;
+        if (!tableModal) return;
 
-        const searchInput = document.getElementById("student-search");
-        const studentsList = document.getElementById("students-list");
-        const allHint = document.getElementById("all-absent-hint");
-        const applyBtn = document.getElementById("modal-apply");
+        const sortOptions = [
+            { value: "default", label: "По порядку" },
+            { value: "name_asc", label: "ФИО А-Я" },
+            { value: "name_desc", label: "ФИО Я-А" },
+        ];
 
-        if (!searchInput || !studentsList || !applyBtn) {
-            console.warn("Students modal: required elements not found");
-            return;
+        const allHint =
+            "В этом списке можно только удалять учеников (снимать галочки). " +
+            "Чтобы добавить отсутствующего - используйте столбцы причин " +
+            "(неуважительные/ОРВИ/другие/семейные).";
+
+        let currentClassId = null;
+        let currentMode = null;
+        let allBeforeOpen = [];
+
+        function resetState() {
+            currentClassId = null;
+            currentMode = null;
+            allBeforeOpen = [];
         }
 
-        waitForBootstrap((BS) => {
-            let currentClassId = null;
-            let currentMode = null;
-            let allBeforeOpen = [];
+        function applySelection(selectedIds) {
+            if (!currentClassId || !currentMode) return true;
 
-            function getModal() {
-                return BS.Modal.getInstance(modalEl) || new BS.Modal(modalEl, {
-                    backdrop: false,
-                    keyboard: true,
-                    focus: true
-                });
-            }
+            const row = getRowByClassId(currentClassId);
+            const hidden = getHiddenEl(currentClassId, currentMode);
+            const selectedContainer = getSelectedEl(currentClassId, currentMode);
 
-            function openModal(classId, mode) {
-                currentClassId = String(classId);
-                currentMode = mode;
+            if (!row || !hidden || !selectedContainer) return true;
 
-                if (allHint) {
-                    if (mode === "all") allHint.classList.remove("d-none");
-                    else allHint.classList.add("d-none");
-                }
+            const ids = parseIdsList((selectedIds || []).join(","));
 
-                const hidden = getHiddenEl(currentClassId, currentMode);
-                if (!hidden) return;
+            if (currentMode === "all") {
+                const beforeSet = new Set(allBeforeOpen.map(String));
+                const newAll = ids.filter(id => beforeSet.has(String(id)));
+                const removed = allBeforeOpen.filter(id => !newAll.includes(String(id)));
 
-                const container = document.getElementById(`students-container-${currentClassId}`);
-                if (!container) return;
+                hidden.value = joinIdsList(newAll);
+                renderPillsFromIds(selectedContainer, currentClassId, newAll);
 
-                const sanitized = parseIdsList(hidden.value);
-                hidden.value = joinIdsList(sanitized);
+                if (removed.length) removeIdsFromAllReasons(currentClassId, removed);
 
-                const selectedIds = new Set(sanitized);
-                allBeforeOpen = (currentMode === "all") ? Array.from(selectedIds) : [];
-
-                studentsList.innerHTML = "";
-                searchInput.value = "";
-
-                const allowedAllSet = currentMode === "all"
-                    ? new Set(getReasonUnionIds(currentClassId).map(String))
-                    : null;
-
-                $$(".student-option", container).forEach(item => {
-                    const id = String(item.dataset.studentId || "").trim();
-                    const name = String(item.dataset.studentName || "").trim();
-                    if (!id || !/^\d+$/.test(id) || !name) return;
-
-                    const row = document.createElement("label");
-                    row.className = "student-row";
-                    row.dataset.name = name.toLowerCase();
-
-                    const checkbox = document.createElement("input");
-                    checkbox.type = "checkbox";
-                    checkbox.value = id;
-                    checkbox.checked = selectedIds.has(id);
-
-                    if (currentMode === "all") {
-                        const canBeInAll = allowedAllSet ? allowedAllSet.has(id) : true;
-
-                        if (!checkbox.checked) {
-                            checkbox.disabled = true;
-                            checkbox.title = "Добавлять через «Все отсутствующие» нельзя. Используйте столбцы причин.";
-                        }
-                        if (!canBeInAll) {
-                            checkbox.checked = false;
-                            checkbox.disabled = true;
-                            checkbox.title = "Этот ученик не отмечен ни в одной причине отсутствия.";
-                        }
-                    }
-
-                    const span = document.createElement("span");
-                    span.textContent = name;
-
-                    row.appendChild(checkbox);
-                    row.appendChild(span);
-                    studentsList.appendChild(row);
-                });
-
-                const m = getModal();
-                m.show();
-                setTimeout(() => searchInput.focus(), 50);
-            }
-
-            function applySelection() {
-                if (!currentClassId || !currentMode) return;
-
-                const row = getRowByClassId(currentClassId);
-                if (!row) return;
-
-                const hidden = getHiddenEl(currentClassId, currentMode);
-                const selectedContainer = getSelectedEl(currentClassId, currentMode);
-
-                if (!hidden || !selectedContainer) {
-                    getModal().hide();
-                    return;
-                }
-
-                const checked = $$('input[type="checkbox"]:checked', studentsList);
-                const idsRaw = checked.map(cb => String(cb.value).trim());
-                const ids = parseIdsList(idsRaw.join(","));
-
-                if (currentMode === "all") {
-                    const beforeSet = new Set(allBeforeOpen.map(String));
-                    const newAll = ids.filter(id => beforeSet.has(String(id)));
-                    const removed = allBeforeOpen.filter(id => !newAll.includes(String(id)));
-
-                    hidden.value = joinIdsList(newAll);
-                    renderPillsFromIds(selectedContainer, currentClassId, newAll);
-
-                    if (removed.length) removeIdsFromAllReasons(currentClassId, removed);
-
-                    syncAllFromReasons(currentClassId);
-                    validateAllForClass(currentClassId);
-
-                    getModal().hide();
-                    return;
-                }
-
-                removeIdsFromOtherReasons(currentClassId, currentMode, ids);
-                hidden.value = joinIdsList(ids);
-                renderPillsFromIds(selectedContainer, currentClassId, ids);
-                syncCountFromIds(row, currentMode, ids.length);
                 syncAllFromReasons(currentClassId);
-
                 validateAllForClass(currentClassId);
-                getModal().hide();
+                return true;
             }
 
-            searchInput.addEventListener("input", () => {
-                const term = (searchInput.value || "").toLowerCase();
-                $$(".student-row", studentsList).forEach(r => {
-                    const name = r.dataset.name || "";
-                    r.style.display = name.includes(term) ? "" : "none";
-                });
+            removeIdsFromOtherReasons(currentClassId, currentMode, ids);
+            hidden.value = joinIdsList(ids);
+            renderPillsFromIds(selectedContainer, currentClassId, ids);
+            syncCountFromIds(row, currentMode, ids.length);
+            syncAllFromReasons(currentClassId);
+
+            validateAllForClass(currentClassId);
+            return true;
+        }
+
+        function openModal(classId, mode) {
+            currentClassId = String(classId || "");
+            currentMode = MODES[mode] ? mode : "unexcused";
+
+            const hidden = getHiddenEl(currentClassId, currentMode);
+            if (!hidden) return;
+
+            const container = document.getElementById(`students-container-${currentClassId}`);
+            if (!container) return;
+
+            let sanitized = parseIdsList(hidden.value);
+
+            const allowedAllSet = currentMode === "all"
+                ? new Set(getReasonUnionIds(currentClassId).map(String))
+                : null;
+
+            if (allowedAllSet) {
+                sanitized = sanitized.filter(id => allowedAllSet.has(String(id)));
+            }
+
+            hidden.value = joinIdsList(sanitized);
+
+            const selectedSet = new Set(sanitized);
+            allBeforeOpen = (currentMode === "all") ? Array.from(selectedSet) : [];
+
+            const items = [];
+            $$(".student-option", container).forEach(item => {
+                const id = String(item.dataset.studentId || "").trim();
+                const name = String(item.dataset.studentName || "").trim();
+                if (!id || !/^\d+$/.test(id) || !name) return;
+
+                let disabled = false;
+                if (currentMode === "all") {
+                    const canBeInAll = allowedAllSet ? allowedAllSet.has(id) : true;
+                    if (!canBeInAll || !selectedSet.has(id)) disabled = true;
+                }
+
+                items.push({ id, label: name, disabled });
             });
 
-            document.addEventListener("click", (e) => {
-                const btn = e.target.closest(".open-modal-btn");
-                if (!btn) return;
-                openModal(btn.dataset.classId, btn.dataset.mode || "unexcused");
+            tableModal.open({
+                title: "Выбор отсутствующих учеников",
+                subtitle: "",
+                items,
+                selectable: true,
+                selectedIds: sanitized,
+                searchPlaceholder: "Поиск по ФИО...",
+                sortOptions,
+                defaultSort: "name_asc",
+                hintText: currentMode === "all" ? allHint : "",
+                size: "lg",
+                onApply: applySelection,
+                onClose: resetState,
             });
+        }
 
-            applyBtn.addEventListener("click", applySelection);
-
-            modalEl.addEventListener("hidden.bs.modal", () => {
-                currentClassId = null;
-                currentMode = null;
-                allBeforeOpen = [];
-                if (allHint) allHint.classList.add("d-none");
-                searchInput.value = "";
-                studentsList.innerHTML = "";
-            });
+        document.addEventListener("click", (e) => {
+            const btn = e.target.closest(".open-modal-btn");
+            if (!btn) return;
+            openModal(btn.dataset.classId, btn.dataset.mode || "unexcused");
         });
     })();
 
@@ -808,105 +764,56 @@
     })();
 
     // -----------------------------
-    // Privileged modal
+    // Unified table modal: privileged list
     // -----------------------------
     (function initPrivilegedModal() {
-        const modalEl = document.getElementById("privileged-modal");
-        if (!modalEl) return;
+        const tableModal = window.TableModal;
+        if (!tableModal) return;
 
-        const titleEl = document.getElementById("privileged-modal-title");
-        const subtitleEl = document.getElementById("privileged-modal-subtitle");
-        const searchEl = document.getElementById("privileged-search");
-        const listEl = document.getElementById("privileged-list");
+        const sortOptions = [
+            { value: "default", label: "По порядку" },
+            { value: "name_asc", label: "ФИО А-Я" },
+            { value: "name_desc", label: "ФИО Я-А" },
+        ];
 
-        if (!searchEl || !listEl) {
-            console.warn("Privileged modal: required elements not found");
-            return;
-        }
+        function openPrivModal(cid, cname) {
+            const className = cname || "";
+            const container = document.getElementById("privileged-present-container-" + cid);
 
-        waitForBootstrap((BS) => {
-            let allNames = [];
-            let className = "";
-
-            function getModal() {
-                return BS.Modal.getInstance(modalEl) || new BS.Modal(modalEl, {
-                    backdrop: false,
-                    keyboard: true,
-                    focus: true
+            const names = [];
+            if (container) {
+                $$(".priv-option", container).forEach(el => {
+                    const t = (el.textContent || "").trim();
+                    if (t) names.push(t);
                 });
             }
 
-            function sortRu(a, b) {
-                return a.localeCompare(b, "ru", { sensitivity: "base" });
-            }
+            const items = names.map((name, idx) => ({ id: String(idx), label: name }));
 
-            function render(names) {
-                listEl.innerHTML = "";
-
-                if (!names.length) {
-                    const empty = document.createElement("div");
-                    empty.className = "text-secondary";
-                    empty.textContent = "Нет присутствующих льготников по этому классу.";
-                    listEl.appendChild(empty);
-                } else {
-                    names.forEach(n => {
-                        const item = document.createElement("div");
-                        item.className = "readonly-item";
-                        item.textContent = n;
-                        listEl.appendChild(item);
-                    });
-                }
-
-                const shown = names.length;
-                const total = allNames.length;
-
-                if (subtitleEl) {
+            tableModal.open({
+                title: "Льготники в школе сейчас",
+                subtitle: "",
+                subtitleBuilder: ({ shown, total }) => {
                     const cls = className ? ("Класс " + className + " • ") : "";
-                    subtitleEl.textContent = cls + "Показано: " + shown + " из " + total;
-                }
-            }
-
-            function openPrivModal(cid, cname) {
-                className = cname || "";
-                const container = document.getElementById("privileged-present-container-" + cid);
-
-                const raw = [];
-                if (container) {
-                    $$(".priv-option", container).forEach(el => {
-                        const t = (el.textContent || "").trim();
-                        if (t) raw.push(t);
-                    });
-                }
-
-                allNames = raw.sort(sortRu);
-
-                if (titleEl) titleEl.textContent = "Льготники в школе сейчас";
-                searchEl.value = "";
-                render(allNames);
-
-                getModal().show();
-                setTimeout(() => searchEl.focus(), 50);
-            }
-
-            document.addEventListener("click", (e) => {
-                const btn = e.target.closest(".open-privileged-modal-btn");
-                if (!btn) return;
-                openPrivModal(btn.dataset.classId, btn.dataset.className);
+                    return cls + "Показано: " + shown + " из " + total;
+                },
+                items,
+                selectable: false,
+                showApply: false,
+                cancelLabel: "Закрыть",
+                searchPlaceholder: "Поиск по ФИО...",
+                emptyText: "Нет присутствующих льготников по этому классу.",
+                sortOptions,
+                defaultSort: "name_asc",
+                size: "lg",
             });
+        }
 
-            searchEl.addEventListener("input", () => {
-                const term = (searchEl.value || "").trim().toLowerCase();
-                const filtered = !term ? allNames : allNames.filter(n => n.toLowerCase().includes(term));
-                render(filtered);
-            });
-
-            modalEl.addEventListener("hidden.bs.modal", () => {
-                allNames = [];
-                className = "";
-                searchEl.value = "";
-                listEl.innerHTML = "";
-                if (subtitleEl) subtitleEl.textContent = "";
-            });
+        document.addEventListener("click", (e) => {
+            const btn = e.target.closest(".open-privileged-modal-btn");
+            if (!btn) return;
+            openPrivModal(btn.dataset.classId, btn.dataset.className);
         });
     })();
+
 })();

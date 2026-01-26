@@ -294,65 +294,6 @@
       <input type="hidden" name="privilege_types" id="priv-type-value">
     </form>
 
-    <!-- Bootstrap modal выбора типа льготы (IDs сохранены для JS) -->
-    <div class="modal fade" id="priv-type-modal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-md">
-        <div class="modal-content bg-dark border border-secondary-subtle">
-          <div class="modal-header">
-            <div class="d-flex flex-column gap-1">
-              <h2 class="h6 mb-0">Типы льгот</h2>
-              <div id="priv-type-subtitle" class="text-secondary small"></div>
-            </div>
-
-            <button type="button"
-                    class="btn-close btn-close-white"
-                    data-bs-dismiss="modal"
-                    aria-label="Закрыть"></button>
-          </div>
-
-          <div class="modal-body">
-            <div id="priv-type-list" class="vstack gap-2">
-              <label class="priv-type-row">
-                <input type="checkbox" name="priv_type" value="svo">
-                <span>СВО</span>
-              </label>
-              <label class="priv-type-row">
-                <input type="checkbox" name="priv_type" value="multi">
-                <span>Многодетные</span>
-              </label>
-              <label class="priv-type-row">
-                <input type="checkbox" name="priv_type" value="low_income">
-                <span>Малоимущие</span>
-              </label>
-              <label class="priv-type-row">
-                <input type="checkbox" name="priv_type" value="disabled">
-                <span>ОВЗ</span>
-              </label>
-            </div>
-
-            <div class="text-secondary small mt-3">
-              Выберите один или несколько типов и нажмите «Сохранить». Чтобы полностью снять льготу — «Снять льготу».
-            </div>
-          </div>
-
-          <div class="modal-footer d-flex justify-content-between">
-            <button type="button" id="priv-type-clear" class="btn btn-outline-warning">
-              <i class="bi bi-x-circle me-1"></i> Снять льготу
-            </button>
-
-            <div class="d-flex gap-2">
-              <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">
-                Отмена
-              </button>
-              <button type="button" id="priv-type-apply" class="btn btn-primary">
-                <i class="bi bi-check2 me-1"></i> Сохранить
-              </button>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
 
   </div>
 </div>

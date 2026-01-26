@@ -171,9 +171,65 @@
         {% block content %}{% endblock %}
     </main>
 
+    <div class="modal fade" id="table-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable app-modal-sheet">
+            <div class="modal-content bg-dark border border-secondary-subtle">
+                <div class="modal-header">
+                    <div class="d-flex flex-column gap-1">
+                        <h2 id="table-modal-title" class="h6 mb-0"></h2>
+                        <div id="table-modal-subtitle" class="text-secondary small"></div>
+                    </div>
+
+                    <button type="button"
+                            class="btn-close btn-close-white"
+                            data-bs-dismiss="modal"
+                            aria-label="Закрыть"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="table-modal-toolbar">
+                        <div class="input-group input-group-sm table-modal-search" id="table-modal-search-wrap">
+                            <span class="input-group-text bg-transparent text-secondary border-0 ps-0">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input id="table-modal-search"
+                                   type="text"
+                                   class="form-control"
+                                   placeholder="Поиск..."
+                                   autocomplete="off">
+                        </div>
+
+                        <div class="table-modal-sort" id="table-modal-sort-wrap">
+                            <select id="table-modal-sort"
+                                    class="form-select form-select-sm"
+                                    aria-label="Сортировка"></select>
+                        </div>
+                    </div>
+
+                    <div id="table-modal-hint" class="alert alert-warning py-2 px-3 mt-3 mb-0 d-none"></div>
+                    <div id="table-modal-list" class="table-modal-list mt-3"></div>
+                    <div id="table-modal-empty" class="table-modal-empty text-secondary d-none"></div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" id="table-modal-secondary" class="btn btn-outline-warning d-none"></button>
+                    <div class="ms-auto d-flex gap-2">
+                        <button type="button" id="table-modal-cancel" class="btn btn-outline-light" data-bs-dismiss="modal">
+                            Отмена
+                        </button>
+                        <button type="button" id="table-modal-apply" class="btn btn-primary">
+                            Применить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script src="{% static 'attendance/bootstrap/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'attendance/js/table_modal.js' %}"></script>
 <script src="{% static 'attendance/js/data_toggle_password.js' %}"></script>
 <script src="{% static 'attendance/js/theme_toggle.js' %}"></script>
 {% block script %}{% endblock %}

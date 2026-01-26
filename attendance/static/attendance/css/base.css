@@ -473,6 +473,126 @@ body.modal-open .app-header {
     z-index: 1050;
 }
 
+/* ===== Unified table modal ===== */
+.table-modal-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem .75rem;
+}
+
+.table-modal-search {
+    flex: 1 1 240px;
+    min-width: 0;
+}
+
+.table-modal-sort {
+    width: 190px;
+}
+
+.table-modal-list {
+    max-height: min(45vh, 520px);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 4px;
+}
+
+.table-modal-item {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .55rem .65rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    cursor: pointer;
+    user-select: none;
+}
+
+.table-modal-item span {
+    flex: 1;
+}
+
+.table-modal-item:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover-border);
+}
+
+.table-modal-item input[type="checkbox"] {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin-top: 0;
+}
+
+.table-modal-item--readonly {
+    cursor: default;
+}
+
+.table-modal-item--readonly:hover {
+    background: var(--surface-2);
+    border-color: var(--border);
+}
+
+.table-modal-item--disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.table-modal-item--disabled:hover {
+    background: var(--surface-2);
+    border-color: var(--border);
+}
+
+.table-modal-item--disabled input {
+    pointer-events: none;
+}
+
+.table-modal-empty {
+    padding: .35rem .25rem;
+}
+
+.table-modal-item:has(input:focus) {
+    outline: 2px solid var(--focus-ring-strong);
+    outline-offset: 2px;
+}
+
+/* sheet-style modal for mobile */
+@media (max-width: 576px){
+    .app-modal-sheet.modal-dialog{
+        width: calc(100% - 16px);
+        max-width: none;
+        margin: 8px auto;
+    }
+
+    .app-modal-sheet .modal-content{
+        max-height: min(72vh, 560px);
+        border-radius: 16px;
+    }
+
+    .app-modal-sheet .modal-header,
+    .app-modal-sheet .modal-footer{
+        padding: .65rem .75rem;
+    }
+
+    .app-modal-sheet .modal-body{
+        padding: .75rem .75rem;
+    }
+}
+
+@media (max-width: 576px){
+    .app-modal-sheet-lg .modal-content{
+        max-height: min(80vh, 620px);
+    }
+}
+
+@media (max-width: 576px) {
+    .table-modal-sort {
+        width: 100%;
+    }
+}
+
 /* ===== Utility: muted ===== */
 .muted, .text-muted {
     color: var(--text-muted-soft) !important;
