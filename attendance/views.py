@@ -640,11 +640,14 @@ def statistics(request):
     privileged_types_totals['total'] = sum(r['total'] for r in privileged_types_by_class)
     total_classes_count = ClassRoom.objects.all().count()
 
+    total_students_count = Student.objects.filter(is_active=True).count()
+
     context = {
         'ordered_days': ordered_days,
         'day_totals': day_totals,
         'day_reported_counts': day_reported_counts,
         'total_classes_count': total_classes_count,
+        'total_students_count': total_students_count,
         'monthly_by_class': monthly_by_class,
         'per_student': per_student,
         'month': month,

@@ -283,7 +283,7 @@
                       </span>
 
                       <span class="text-secondary small ms-auto d-none d-md-inline">
-                        По списку: {{ totals.total_present_auto|default:"0" }} •
+                        По списку: {{ total_students_count|default:"0" }} •
                         Пришло: {{ totals.total_present_reported|default:"0" }} •
                         Неув.: {{ totals.total_unexcused|default:"0" }} •
                         ОРВИ: {{ totals.total_orvi|default:"0" }}
@@ -312,7 +312,7 @@
                         <div class="summary-mini mb-0">
                           <span class="muted">Итого за день:</span>
                           <span class="summary-mini-item">
-                            По списку: <b>{{ totals.total_present_auto|default:"0" }}</b>
+                            По списку: <b>{{ total_students_count|default:"0" }}</b>
                           </span>
                           <span class="summary-mini-item">
                             Пришло: <b>{{ totals.total_present_reported|default:"0" }}</b>
