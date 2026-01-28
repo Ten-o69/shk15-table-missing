@@ -1,8 +1,11 @@
+import calendar
+import json  # <--- Вернули импорт
 from collections import defaultdict
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Sum, Count
 from django.shortcuts import render
 from django.utils import timezone
+from django.core.serializers.json import DjangoJSONEncoder  # <--- Вернули импорт
 
 from database.models import ClassRoom, Student, AttendanceSummary, AbsentStudent
 from ..utils import class_sort_key
@@ -17,7 +20,10 @@ def statistics(request):
     month = int(request.GET.get('month', today.month))
     year = int(request.GET.get('year', today.year))
 
-    monthly_qs = AttendanceSummary.objects.filter(date__year=year, date__month=month).select_related('class_room')
+    # 1. Базовые данные
+    monthly_qs = AttendanceSummary.objects.filter(
+        date__year=year, date__month=month
+    ).select_related('class_room')
 
     days_map = defaultdict(list)
     for s in monthly_qs.order_by('-date'):
@@ -28,6 +34,7 @@ def statistics(request):
 
     ordered_days = sorted(days_map.items(), key=lambda x: x[0], reverse=True)
 
+    # 2. Подсчет итогов по дням
     day_totals = {}
     day_reported_counts = {}
     for day, records in days_map.items():
@@ -41,7 +48,10 @@ def statistics(request):
             'total_family': sum(r.family_reason_count for r in records),
         }
 
-    monthly_by_class = list(monthly_qs.values('class_room__id', 'class_room__name').annotate(
+    # 3. Сводка по классам
+    monthly_by_class = list(monthly_qs.values(
+        'class_room__id', 'class_room__name'
+    ).annotate(
         total_present_auto=Sum('present_count_auto'),
         total_present_reported=Sum('present_count_reported'),
         total_unexcused=Sum('unexcused_absent_count'),
@@ -51,25 +61,28 @@ def statistics(request):
     ))
     monthly_by_class.sort(key=lambda r: class_sort_key(r['class_room__name']))
 
+    # 4. По ученикам
     absences_qs = AbsentStudent.objects.filter(
-        attendance__date__year=year, attendance__date__month=month, reason=AbsentStudent.Reason.UNEXCUSED,
+        attendance__date__year=year,
+        attendance__date__month=month,
+        reason=AbsentStudent.Reason.UNEXCUSED,
     ).select_related('student', 'attendance__class_room')
 
-    per_student = list(absences_qs.values('student__id', 'student__full_name', 'student__class_room__name').annotate(
-        absence_count=Count('id')))
+    per_student = list(absences_qs.values(
+        'student__id', 'student__full_name', 'student__class_room__name'
+    ).annotate(absence_count=Count('id')))
     per_student.sort(key=lambda r: (r['student__full_name'] or '').lower())
     per_student.sort(key=lambda r: class_sort_key(r['student__class_room__name']))
 
-    # Льготники по типам
+    # 5. Льготники
     all_classes = sorted(ClassRoom.objects.all(), key=class_sort_key)
-    priv_qs = Student.objects.filter(is_active=True, class_room__in=all_classes, privilege_types__isnull=False).values(
-        'class_room_id', 'class_room__name', 'privilege_types__code'
-    ).annotate(cnt=Count('id', distinct=True))
+    priv_qs = Student.objects.filter(
+        is_active=True, class_room__in=all_classes, privilege_types__isnull=False
+    ).values('class_room_id', 'class_room__name', 'privilege_types__code').annotate(cnt=Count('id', distinct=True))
 
     by_class = {
         c.id: {'class_id': c.id, 'class_name': c.name, 'svo': 0, 'multi': 0, 'low_income': 0, 'disabled': 0, 'total': 0}
         for c in all_classes}
-
     for row in priv_qs:
         cid = row['class_room_id']
         ptype = row['privilege_types__code']
@@ -91,6 +104,88 @@ def statistics(request):
     total_classes_count = ClassRoom.objects.all().count()
     total_students_count = Student.objects.filter(is_active=True).count()
 
+    # --- ГРАФИКИ ---
+    _, last_day = calendar.monthrange(year, month)
+    month_days = [timezone.datetime(year, month, d).date() for d in range(1, last_day + 1)]
+
+    summary_map = defaultdict(dict)
+    for s in monthly_qs:
+        summary_map[s.class_room_id][s.date] = s
+
+    heatmap_series = []
+    for c in all_classes:
+        data_points = []
+        for d in month_days:
+            s = summary_map[c.id].get(d)
+            val = None  # Процент для цвета
+            counts = None  # Детализация для тултипа
+
+            if s:
+                present = s.present_count_reported
+                unex = s.unexcused_absent_count
+                orvi = s.orvi_count
+                other = s.other_disease_count
+                fam = s.family_reason_count
+
+                total_absent = unex + orvi + other + fam
+                total = present + total_absent
+
+                if total > 0:
+                    val = round((present / total) * 100, 1)
+                else:
+                    val = 0
+
+                # Собираем реальные числа
+                counts = {
+                    'p': present,  # Пришло
+                    'u': unex,  # Неуважительные
+                    'o': orvi,  # ОРВИ
+                    'd': other,  # Другие болезни
+                    'f': fam  # Семейные
+                }
+
+            # Добавляем объект counts внутрь точки данных
+            data_points.append({
+                'x': d.strftime('%d.%m'),
+                'y': val,
+                'counts': counts
+            })
+
+        heatmap_series.append({'name': c.name, 'data': data_points})
+
+    # Timeline (здесь тоже можно добавить детализацию, если нужно)
+    timeline_series = []
+    for d in month_days:
+        t = day_totals.get(d)
+        val = None
+        counts = None
+        if t:
+            present = t['total_present_reported']
+            unex = t['total_unexcused']
+            orvi = t['total_orvi']
+            other = t['total_other_disease']
+            fam = t['total_family']
+
+            total_absent = unex + orvi + other + fam
+            total = present + total_absent
+
+            if total > 0: val = round((present / total) * 100, 1)
+
+            counts = {
+                'p': present, 'u': unex, 'o': orvi, 'd': other, 'f': fam
+            }
+
+        timeline_series.append({
+            'x': d.strftime('%d.%m'),
+            'y': val,
+            'counts': counts
+        })
+
+    raw_chart_data = {
+        'heatmap': heatmap_series,
+        'timeline': [{'name': 'Среднее по школе', 'data': timeline_series}]
+    }
+
     context = {
         'ordered_days': ordered_days,
         'day_totals': day_totals,
@@ -103,5 +198,8 @@ def statistics(request):
         'year': year,
         'privileged_types_by_class': privileged_types_by_class,
         'privileged_types_totals': privileged_types_totals,
+
+        # ✅ Передаем ГОТОВУЮ JSON-строку
+        'chart_data_json': json.dumps(raw_chart_data, cls=DjangoJSONEncoder),
     }
     return render(request, 'attendance/statistics.html', context)
