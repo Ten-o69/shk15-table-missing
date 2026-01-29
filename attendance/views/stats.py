@@ -40,13 +40,26 @@ def statistics(request):
     day_reported_counts = {}
     for day, records in days_map.items():
         day_reported_counts[day] = len(records)
+        total_present_auto = sum(r.present_count_auto for r in records)
+        total_present_reported = sum(r.present_count_reported for r in records)
+        total_unexcused = sum(r.unexcused_absent_count for r in records)
+        total_orvi = sum(r.orvi_count for r in records)
+        total_other_disease = sum(r.other_disease_count for r in records)
+        total_family = sum(r.family_reason_count for r in records)
         day_totals[day] = {
-            'total_present_auto': sum(r.present_count_auto for r in records),
-            'total_present_reported': sum(r.present_count_reported for r in records),
-            'total_unexcused': sum(r.unexcused_absent_count for r in records),
-            'total_orvi': sum(r.orvi_count for r in records),
-            'total_other_disease': sum(r.other_disease_count for r in records),
-            'total_family': sum(r.family_reason_count for r in records),
+            'total_present_auto': total_present_auto,
+            'total_present_reported': total_present_reported,
+            'total_unexcused': total_unexcused,
+            'total_orvi': total_orvi,
+            'total_other_disease': total_other_disease,
+            'total_family': total_family,
+            'total_listed': (
+                total_present_reported
+                + total_unexcused
+                + total_orvi
+                + total_other_disease
+                + total_family
+            ),
         }
 
     # 3. Сводка по классам
