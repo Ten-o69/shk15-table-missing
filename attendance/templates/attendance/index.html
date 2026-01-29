@@ -3,483 +3,511 @@
 {% load attendance_tags %}
 
 {% block title %}Посещаемость за сегодня{% endblock %}
+
 {% block extra_head %}
     <link rel="stylesheet" href="{% static 'attendance/css/index.css' %}">
+    <style>
+        /* Стили для заглушки выходного дня */
+        .weekend-placeholder {
+            min-height: 60vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: var(--bs-secondary);
+        }
+        .weekend-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.5;
+        }
+        .weekend-title {
+            font-size: 2rem;
+            font-weight: 300;
+            margin-bottom: 0.5rem;
+            color: var(--bs-body-color);
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
-<div class="card page-wide shadow-sm">
-    <div class="card-body p-3 p-lg-4">
 
-        <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3 mb-3">
-            <div>
-                <h1 class="h4 mb-1">
-                    Посещаемость за сегодня: {{ today|date:"d.m.Y" }}
-                </h1>
-                <p class="text-secondary mb-0">
-                    Ввод по каждому классу доступен только один раз в день.
-                    На следующий день таблица начнётся с чистого листа, а данные останутся в статистике.
-                </p>
-            </div>
+{# ✅ ГЛАВНАЯ ПРОВЕРКА НА ВЫХОДНОЙ ДЕНЬ #}
+{% if is_work_day %}
 
-            <div class="ms-lg-auto main-search">
-                <label class="form-label mb-1" for="main-table-search">
-                    <i class="bi bi-search me-1"></i> Поиск по классу
-                </label>
-                <input id="main-table-search"
-                       type="text"
-                       class="form-control"
-                       placeholder="Например: 1В, 2А, 3Б">
-                <div class="form-text">Фильтр работает на странице без перезагрузки.</div>
-            </div>
-        </div>
+    <div class="card page-wide shadow-sm">
+        <div class="card-body p-3 p-lg-4">
 
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-            <h2 class="h5 mb-0">
-                <i class="bi bi-table me-1"></i> Таблица по классам
-            </h2>
-        </div>
-
-        <div class="summary-bar mb-3">
-            <div class="summary-item">
-                <span class="summary-label">По списку</span>
-                <span class="summary-value">{{ total_students_all_classes|default:"0" }}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Пришло по факту</span>
-                <span class="summary-value">{{ totals_saved.total_present_reported|default:"0" }}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Неуважительные</span>
-                <span class="summary-value">{{ totals_saved.total_unexcused|default:"0" }}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">ОРВИ</span>
-                <span class="summary-value">{{ totals_saved.total_orvi|default:"0" }}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Другие</span>
-                <span class="summary-value">{{ totals_saved.total_other_disease|default:"0" }}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Семейные</span>
-                <span class="summary-value">{{ totals_saved.total_family|default:"0" }}</span>
-            </div>
-        </div>
-
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="row_count" value="{{ classes|length }}">
-            <input type="hidden" name="edit_class" value="{{ edit_class_id|default:'' }}">
-
-            <div class="app-table" data-app-table>
-                <div class="app-table__toolbar">
-                    <div class="app-table__toolbar-actions ms-auto">
-                        <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
-                            <i class="bi bi-clipboard me-1"></i> Скопировать
-                        </button>
-                        <span class="app-table__copy-status" data-copy-status></span>
-                    </div>
+            <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3 mb-3">
+                <div>
+                    <h1 class="h4 mb-1">
+                        Посещаемость за сегодня: {{ today|date:"d.m.Y" }}
+                    </h1>
+                    <p class="text-secondary mb-0">
+                        Ввод по каждому классу доступен только один раз в день.
+                        На следующий день таблица начнётся с чистого листа, а данные останутся в статистике.
+                    </p>
                 </div>
-                <div class="table-responsive app-table__scroll">
-                    <table class="table table-dark table-striped table-hover align-middle mb-0 table-main app-table__table app-table--stack"
-                           data-app-table-target
-                           data-sort-columns="class,number,number,text,number,text,number,text,number,text,text,number">
-                    <thead>
-                    <tr>
-                        <th class="text-nowrap">Класс</th>
-                        <th>По списку<br><span class="th-sub">всего учеников</span></th>
 
-                        <th>Неуважительные<br><span class="th-sub">количество</span></th>
-                        <th>Ученики<br><span class="th-sub">неув.</span></th>
+                <div class="ms-lg-auto main-search">
+                    <label class="form-label mb-1" for="main-table-search">
+                        <i class="bi bi-search me-1"></i> Поиск по классу
+                    </label>
+                    <input id="main-table-search"
+                           type="text"
+                           class="form-control"
+                           placeholder="Например: 1В, 2А, 3Б">
+                    <div class="form-text">Фильтр работает на странице без перезагрузки.</div>
+                </div>
+            </div>
 
-                        <th>ОРВИ<br><span class="th-sub">количество</span></th>
-                        <th>Ученики<br><span class="th-sub">ОРВИ</span></th>
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                <h2 class="h5 mb-0">
+                    <i class="bi bi-table me-1"></i> Таблица по классам
+                </h2>
+            </div>
 
-                        <th>Другие причины<br><span class="th-sub">количество</span></th>
-                        <th>Ученики<br><span class="th-sub">другие</span></th>
+            <div class="summary-bar mb-3">
+                <div class="summary-item">
+                    <span class="summary-label">По списку</span>
+                    <span class="summary-value">{{ total_students_all_classes|default:"0" }}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Пришло по факту</span>
+                    <span class="summary-value">{{ totals_saved.total_present_reported|default:"0" }}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Неуважительные</span>
+                    <span class="summary-value">{{ totals_saved.total_unexcused|default:"0" }}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">ОРВИ</span>
+                    <span class="summary-value">{{ totals_saved.total_orvi|default:"0" }}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Другие</span>
+                    <span class="summary-value">{{ totals_saved.total_other_disease|default:"0" }}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Семейные</span>
+                    <span class="summary-value">{{ totals_saved.total_family|default:"0" }}</span>
+                </div>
+            </div>
 
-                        <th>Семейные<br><span class="th-sub">количество</span></th>
-                        <th>Ученики<br><span class="th-sub">сем.</span></th>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="row_count" value="{{ classes|length }}">
+                <input type="hidden" name="edit_class" value="{{ edit_class_id|default:'' }}">
 
-                        <th>Все отсутствующие<br><span class="th-sub">уваж.+неув.</span></th>
-                        <th>Пришло по факту<br><span class="th-sub">считается авто</span></th>
-                    </tr>
-                    </thead>
+                <div class="app-table" data-app-table>
+                    <div class="app-table__toolbar">
+                        <div class="app-table__toolbar-actions ms-auto">
+                            <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
+                                <i class="bi bi-clipboard me-1"></i> Скопировать
+                            </button>
+                            <span class="app-table__copy-status" data-copy-status></span>
+                        </div>
+                    </div>
+                    <div class="table-responsive app-table__scroll">
+                        <table class="table table-dark table-striped table-hover align-middle mb-0 table-main app-table__table app-table--stack"
+                               data-app-table-target
+                               data-sort-columns="class,number,number,text,number,text,number,text,number,text,text,number">
+                        <thead>
+                        <tr>
+                            <th class="text-nowrap">Класс</th>
+                            <th>По списку<br><span class="th-sub">всего учеников</span></th>
 
-                    <tbody>
-                    {% for class in classes %}
-                        {% with summary=summary_by_class|dict_get:class.id %}
-                        {% with can_edit=can_edit_by_class|dict_get:class.id %}
-                        <tr class="table-row"
-                            data-class-name="{{ class.name|lower }}"
-                            data-class-id="{{ class.id }}"
-                            data-total-students="{% if summary %}{{ summary.present_count_auto }}{% else %}{{ class.student_count|default:'0' }}{% endif %}">
+                            <th>Неуважительные<br><span class="th-sub">количество</span></th>
+                            <th>Ученики<br><span class="th-sub">неув.</span></th>
 
-                            <td class="fw-semibold stack-head-cell" data-label="Класс">
-                                <div class="d-flex flex-column gap-1">
-                                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                                        <span class="badge rounded-pill text-bg-primary">{{ class.name }}</span>
-                                        <input type="hidden" name="class_{{ forloop.counter0 }}" value="{{ class.id }}">
-                                    </div>
+                            <th>ОРВИ<br><span class="th-sub">количество</span></th>
+                            <th>Ученики<br><span class="th-sub">ОРВИ</span></th>
 
-                                    {% if summary %}
-                                        <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
-                                            {% if edit_class_id == class.id %}
-                                                <span class="badge rounded-pill text-bg-success">
-                                                    <i class="bi bi-pencil-square me-1"></i> Режим редактирования
-                                                </span>
-                                                <a href="{% url 'index' %}"
-                                                   class="btn btn-sm btn-outline-light">
-                                                    <i class="bi bi-x-lg me-1"></i> Отмена
-                                                </a>
-                                            {% else %}
-                                                {% if can_edit %}
-                                                    <a href="{% url 'index' %}?edit_class={{ class.id }}{% if request.GET.test_date %}&test_date={{ request.GET.test_date }}{% endif %}"
-                                                       class="btn btn-sm btn-outline-info">
-                                                        <i class="bi bi-pencil me-1"></i> Изменить
-                                                    </a>
-                                                    <span class="text-secondary small">
-                                                        Доступно до: {{ edit_deadline_by_class|dict_get:class.id|date:"H:i" }}
-                                                    </span>
-                                                {% else %}
-                                                    <span class="text-secondary small">
-                                                        <i class="bi bi-lock me-1"></i> Редактирование закрыто
-                                                    </span>
-                                                {% endif %}
-                                            {% endif %}
+                            <th>Другие причины<br><span class="th-sub">количество</span></th>
+                            <th>Ученики<br><span class="th-sub">другие</span></th>
+
+                            <th>Семейные<br><span class="th-sub">количество</span></th>
+                            <th>Ученики<br><span class="th-sub">сем.</span></th>
+
+                            <th>Все отсутствующие<br><span class="th-sub">уваж.+неув.</span></th>
+                            <th>Пришло по факту<br><span class="th-sub">считается авто</span></th>
+                        </tr>
+                        </thead>
+
+                        <tbody>
+                        {% for class in classes %}
+                            {% with summary=summary_by_class|dict_get:class.id %}
+                            {% with can_edit=can_edit_by_class|dict_get:class.id %}
+                            <tr class="table-row"
+                                data-class-name="{{ class.name|lower }}"
+                                data-class-id="{{ class.id }}"
+                                data-total-students="{% if summary %}{{ summary.present_count_auto }}{% else %}{{ class.student_count|default:'0' }}{% endif %}">
+
+                                <td class="fw-semibold stack-head-cell" data-label="Класс">
+                                    <div class="d-flex flex-column gap-1">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <span class="badge rounded-pill text-bg-primary">{{ class.name }}</span>
+                                            <input type="hidden" name="class_{{ forloop.counter0 }}" value="{{ class.id }}">
                                         </div>
-                                    {% endif %}
-                                </div>
-                            </td>
 
-                            <td data-label="По списку">
-                                {% if summary and edit_class_id != class.id %}
-                                    <span>{{ summary.present_count_auto }}</span>
-                                {% else %}
-                                    {% if summary %}
+                                        {% if summary %}
+                                            <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                                                {% if edit_class_id == class.id %}
+                                                    <span class="badge rounded-pill text-bg-success">
+                                                        <i class="bi bi-pencil-square me-1"></i> Режим редактирования
+                                                    </span>
+                                                    <a href="{% url 'index' %}"
+                                                       class="btn btn-sm btn-outline-light">
+                                                        <i class="bi bi-x-lg me-1"></i> Отмена
+                                                    </a>
+                                                {% else %}
+                                                    {% if can_edit %}
+                                                        <a href="{% url 'index' %}?edit_class={{ class.id }}{% if request.GET.test_date %}&test_date={{ request.GET.test_date }}{% endif %}"
+                                                           class="btn btn-sm btn-outline-info">
+                                                            <i class="bi bi-pencil me-1"></i> Изменить
+                                                        </a>
+                                                        <span class="text-secondary small">
+                                                            Доступно до: {{ edit_deadline_by_class|dict_get:class.id|date:"H:i" }}
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="text-secondary small">
+                                                            <i class="bi bi-lock me-1"></i> Редактирование закрыто
+                                                        </span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+                                <td data-label="По списку">
+                                    {% if summary and edit_class_id != class.id %}
                                         <span>{{ summary.present_count_auto }}</span>
                                     {% else %}
-                                        {% if class.student_count %}
-                                            <span>{{ class.student_count }}</span>
+                                        {% if summary %}
+                                            <span>{{ summary.present_count_auto }}</span>
                                         {% else %}
-                                            <span class="text-secondary">Задайте число в админке</span>
+                                            {% if class.student_count %}
+                                                <span>{{ class.student_count }}</span>
+                                            {% else %}
+                                                <span class="text-secondary">Задайте число в админке</span>
+                                            {% endif %}
                                         {% endif %}
                                     {% endif %}
-                                {% endif %}
-                            </td>
+                                </td>
 
-                            <td data-label="Неуважительные">
-                                {% if summary and edit_class_id != class.id %}
-                                    <span>{{ summary.unexcused_absent_count }}</span>
-                                {% else %}
-                                    <input type="number"
-                                           name="unexcused_absent_{{ forloop.counter0 }}"
-                                           class="form-control form-control-sm"
-                                           min="0"
-                                           required
-                                           placeholder="0"
-                                           value="{% if summary %}{{ summary.unexcused_absent_count }}{% endif %}">
-                                {% endif %}
-                            </td>
-
-                            <td data-label="Ученики (неуваж.)">
-                                {% if summary and edit_class_id != class.id %}
-                                    {% if summary.absent_students.all %}
-                                        <ul class="pill-list">
-                                            {% for a in summary.absent_students.all %}
-                                                {% if a.reason == 'unexcused' %}
-                                                    <li class="pill">{{ a.student.full_name }}</li>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </ul>
+                                <td data-label="Неуважительные">
+                                    {% if summary and edit_class_id != class.id %}
+                                        <span>{{ summary.unexcused_absent_count }}</span>
                                     {% else %}
-                                        <span class="text-secondary">Нет данных</span>
+                                        <input type="number"
+                                               name="unexcused_absent_{{ forloop.counter0 }}"
+                                               class="form-control form-control-sm"
+                                               min="0"
+                                               required
+                                               placeholder="0"
+                                               value="{% if summary %}{{ summary.unexcused_absent_count }}{% endif %}">
                                     {% endif %}
-                                {% else %}
-                                    <div class="absent-cell">
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-warning open-modal-btn"
-                                                data-class-id="{{ class.id }}"
-                                                data-mode="unexcused">
-                                            <i class="bi bi-person-x me-1"></i> Выбрать
-                                        </button>
+                                </td>
 
-                                        <input type="hidden"
-                                               id="absent-students-{{ class.id }}"
-                                               name="absent_students_{{ class.id }}"
-                                               value="{% if summary %}{{ unexcused_ids_by_class|dict_get:class.id|default:'' }}{% endif %}">
-
-                                        <div class="selected-students" id="selected-students-{{ class.id }}">
-                                            {% if summary %}
-                                                <ul class="pill-list">
-                                                    {% for a in summary.absent_students.all %}
-                                                        {% if a.reason == 'unexcused' %}
-                                                            <li class="pill">{{ a.student.full_name }}</li>
-                                                        {% endif %}
-                                                    {% endfor %}
-                                                </ul>
-                                            {% else %}
-                                                <span class="text-secondary">Ученики не выбраны</span>
-                                            {% endif %}
-                                        </div>
-
-                                        <div class="field-error" id="error-{{ class.id }}"></div>
-                                    </div>
-                                {% endif %}
-                            </td>
-
-                            <td data-label="ОРВИ">
-                                {% if summary and edit_class_id != class.id %}
-                                    <span>{{ summary.orvi_count }}</span>
-                                {% else %}
-                                    <input type="number"
-                                           name="orvi_{{ forloop.counter0 }}"
-                                           class="form-control form-control-sm"
-                                           min="0"
-                                           required
-                                           placeholder="0"
-                                           value="{% if summary %}{{ summary.orvi_count }}{% endif %}">
-                                {% endif %}
-                            </td>
-
-                            <td data-label="Ученики (ОРВИ)">
-                                {% if summary and edit_class_id != class.id %}
-                                    {% if summary.absent_students.all %}
-                                        <ul class="pill-list">
-                                            {% for a in summary.absent_students.all %}
-                                                {% if a.reason == 'orvi' %}
-                                                    <li class="pill">{{ a.student.full_name }}</li>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </ul>
-                                    {% else %}
-                                        <span class="text-secondary">Нет данных</span>
-                                    {% endif %}
-                                {% else %}
-                                    <div class="absent-cell">
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-warning open-modal-btn"
-                                                data-class-id="{{ class.id }}"
-                                                data-mode="orvi">
-                                            <i class="bi bi-thermometer-half me-1"></i> Выбрать
-                                        </button>
-
-                                        <input type="hidden"
-                                               id="orvi-students-{{ class.id }}"
-                                               name="orvi_students_{{ class.id }}"
-                                               value="{% if summary %}{{ orvi_ids_by_class|dict_get:class.id }}{% endif %}">
-
-                                        <div class="selected-orvi-students" id="selected-orvi-students-{{ class.id }}">
-                                            {% if summary %}
-                                                <ul class="pill-list">
-                                                    {% for a in summary.absent_students.all %}
-                                                        {% if a.reason == 'orvi' %}
-                                                            <li class="pill">{{ a.student.full_name }}</li>
-                                                        {% endif %}
-                                                    {% endfor %}
-                                                </ul>
-                                            {% else %}
-                                                <span class="text-secondary">Ученики не выбраны</span>
-                                            {% endif %}
-                                        </div>
-
-                                        <div class="field-error" id="error-orvi-{{ class.id }}"></div>
-                                    </div>
-                                {% endif %}
-                            </td>
-
-                            <td data-label="Другие">
-                                {% if summary and edit_class_id != class.id %}
-                                    <span>{{ summary.other_disease_count }}</span>
-                                {% else %}
-                                    <input type="number"
-                                           name="other_disease_{{ forloop.counter0 }}"
-                                           class="form-control form-control-sm"
-                                           min="0"
-                                           required
-                                           placeholder="0"
-                                           value="{% if summary %}{{ summary.other_disease_count }}{% endif %}">
-                                {% endif %}
-                            </td>
-
-                            <td data-label="Ученики (другие)">
-                                {% if summary and edit_class_id != class.id %}
-                                    {% if summary.absent_students.all %}
-                                        <ul class="pill-list">
-                                            {% for a in summary.absent_students.all %}
-                                                {% if a.reason == 'other_disease' %}
-                                                    <li class="pill">{{ a.student.full_name }}</li>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </ul>
-                                    {% else %}
-                                        <span class="text-secondary">Нет данных</span>
-                                    {% endif %}
-                                {% else %}
-                                    <div class="absent-cell">
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-warning open-modal-btn"
-                                                data-class-id="{{ class.id }}"
-                                                data-mode="other">
-                                            <i class="bi bi-clipboard2-pulse me-1"></i> Выбрать
-                                        </button>
-
-                                        <input type="hidden"
-                                               id="other-students-{{ class.id }}"
-                                               name="other_students_{{ class.id }}"
-                                               value="{% if summary %}{{ other_ids_by_class|dict_get:class.id }}{% endif %}">
-
-                                        <div class="selected-other-students" id="selected-other-students-{{ class.id }}">
-                                            {% if summary %}
-                                                <ul class="pill-list">
-                                                    {% for a in summary.absent_students.all %}
-                                                        {% if a.reason == 'other_disease' %}
-                                                            <li class="pill">{{ a.student.full_name }}</li>
-                                                        {% endif %}
-                                                    {% endfor %}
-                                                </ul>
-                                            {% else %}
-                                                <span class="text-secondary">Ученики не выбраны</span>
-                                            {% endif %}
-                                        </div>
-
-                                        <div class="field-error" id="error-other-{{ class.id }}"></div>
-                                    </div>
-                                {% endif %}
-                            </td>
-
-                            <td data-label="Семейные">
-                                {% if summary and edit_class_id != class.id %}
-                                    <span>{{ summary.family_reason_count }}</span>
-                                {% else %}
-                                    <input type="number"
-                                           name="family_{{ forloop.counter0 }}"
-                                           class="form-control form-control-sm"
-                                           min="0"
-                                           required
-                                           placeholder="0"
-                                           value="{% if summary %}{{ summary.family_reason_count }}{% endif %}">
-                                {% endif %}
-                            </td>
-
-                            <td data-label="Ученики (сем.)">
-                                {% if summary and edit_class_id != class.id %}
-                                    {% if summary.absent_students.all %}
-                                        <ul class="pill-list">
-                                            {% for a in summary.absent_students.all %}
-                                                {% if a.reason == 'family' %}
-                                                    <li class="pill">{{ a.student.full_name }}</li>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </ul>
-                                    {% else %}
-                                        <span class="text-secondary">Нет данных</span>
-                                    {% endif %}
-                                {% else %}
-                                    <div class="absent-cell">
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-warning open-modal-btn"
-                                                data-class-id="{{ class.id }}"
-                                                data-mode="family">
-                                            <i class="bi bi-people me-1"></i> Выбрать
-                                        </button>
-
-                                        <input type="hidden"
-                                               id="family-students-{{ class.id }}"
-                                               name="family_students_{{ class.id }}"
-                                               value="{% if summary %}{{ family_ids_by_class|dict_get:class.id }}{% endif %}">
-
-                                        <div class="selected-family-students" id="selected-family-students-{{ class.id }}">
-                                            {% if summary %}
-                                                <ul class="pill-list">
-                                                    {% for a in summary.absent_students.all %}
-                                                        {% if a.reason == 'family' %}
-                                                            <li class="pill">{{ a.student.full_name }}</li>
-                                                        {% endif %}
-                                                    {% endfor %}
-                                                </ul>
-                                            {% else %}
-                                                <span class="text-secondary">Ученики не выбраны</span>
-                                            {% endif %}
-                                        </div>
-
-                                        <div class="field-error" id="error-family-{{ class.id }}"></div>
-                                    </div>
-                                {% endif %}
-                            </td>
-
-                            <td data-label="Все отсутствующие">
-                                {% if summary and edit_class_id != class.id %}
-                                    {% if summary.absent_students.all %}
-                                        <ul class="pill-list">
-                                            {% for a in summary.absent_students.all %}
-                                                <li class="pill">{{ a.student.full_name }}</li>
-                                            {% endfor %}
-                                        </ul>
-                                    {% else %}
-                                        <span class="text-secondary">Нет данных</span>
-                                    {% endif %}
-                                {% else %}
-                                    <div class="absent-cell">
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-warning open-modal-btn"
-                                                data-class-id="{{ class.id }}"
-                                                data-mode="all">
-                                            <i class="bi bi-list-check me-1"></i> Выбрать всех
-                                        </button>
-
-                                        <input type="hidden"
-                                               id="all-absent-students-{{ class.id }}"
-                                               name="all_absent_students_{{ class.id }}"
-                                               value="{% if summary %}{{ all_absent_ids_by_class|dict_get:class.id }}{% endif %}">
-
-                                        <div class="selected-all-students" id="selected-all-students-{{ class.id }}">
-                                            {% if summary %}
-                                                <ul class="pill-list">
-                                                    {% for a in summary.absent_students.all %}
+                                <td data-label="Ученики (неуваж.)">
+                                    {% if summary and edit_class_id != class.id %}
+                                        {% if summary.absent_students.all %}
+                                            <ul class="pill-list">
+                                                {% for a in summary.absent_students.all %}
+                                                    {% if a.reason == 'unexcused' %}
                                                         <li class="pill">{{ a.student.full_name }}</li>
-                                                    {% endfor %}
-                                                </ul>
-                                            {% else %}
-                                                <span class="text-secondary">Ученики не выбраны</span>
-                                            {% endif %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="text-secondary">Нет данных</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="absent-cell">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-warning open-modal-btn"
+                                                    data-class-id="{{ class.id }}"
+                                                    data-mode="unexcused">
+                                                <i class="bi bi-person-x me-1"></i> Выбрать
+                                            </button>
+
+                                            <input type="hidden"
+                                                   id="absent-students-{{ class.id }}"
+                                                   name="absent_students_{{ class.id }}"
+                                                   value="{% if summary %}{{ unexcused_ids_by_class|dict_get:class.id|default:'' }}{% endif %}">
+
+                                            <div class="selected-students" id="selected-students-{{ class.id }}">
+                                                {% if summary %}
+                                                    <ul class="pill-list">
+                                                        {% for a in summary.absent_students.all %}
+                                                            {% if a.reason == 'unexcused' %}
+                                                                <li class="pill">{{ a.student.full_name }}</li>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% else %}
+                                                    <span class="text-secondary">Ученики не выбраны</span>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="field-error" id="error-{{ class.id }}"></div>
                                         </div>
+                                    {% endif %}
+                                </td>
 
-                                        <div class="field-error" id="error-all-{{ class.id }}"></div>
-                                    </div>
-                                {% endif %}
-                            </td>
+                                <td data-label="ОРВИ">
+                                    {% if summary and edit_class_id != class.id %}
+                                        <span>{{ summary.orvi_count }}</span>
+                                    {% else %}
+                                        <input type="number"
+                                               name="orvi_{{ forloop.counter0 }}"
+                                               class="form-control form-control-sm"
+                                               min="0"
+                                               required
+                                               placeholder="0"
+                                               value="{% if summary %}{{ summary.orvi_count }}{% endif %}">
+                                    {% endif %}
+                                </td>
 
-                            <td data-label="Пришло по факту">
-                                {% if summary and edit_class_id != class.id %}
-                                    <span>{{ summary.present_count_reported }}</span>
-                                {% else %}
-                                    <input type="number"
-                                           name="reported_present_{{ forloop.counter0 }}"
-                                           class="form-control form-control-sm"
-                                           min="0"
-                                           placeholder="Авто"
-                                           readonly
-                                           value="{% if summary %}{{ summary.present_count_reported }}{% endif %}">
-                                {% endif %}
-                            </td>
+                                <td data-label="Ученики (ОРВИ)">
+                                    {% if summary and edit_class_id != class.id %}
+                                        {% if summary.absent_students.all %}
+                                            <ul class="pill-list">
+                                                {% for a in summary.absent_students.all %}
+                                                    {% if a.reason == 'orvi' %}
+                                                        <li class="pill">{{ a.student.full_name }}</li>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="text-secondary">Нет данных</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="absent-cell">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-warning open-modal-btn"
+                                                    data-class-id="{{ class.id }}"
+                                                    data-mode="orvi">
+                                                <i class="bi bi-thermometer-half me-1"></i> Выбрать
+                                            </button>
 
-                        </tr>
-                        {% endwith %}
-                        {% endwith %}
-                    {% empty %}
-                        <tr>
-                            <td colspan="12" class="text-center text-secondary py-4">
-                                Классы не найдены. Проверьте, что они созданы в админке
-                                и закреплены за вашим пользователем.
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
+                                            <input type="hidden"
+                                                   id="orvi-students-{{ class.id }}"
+                                                   name="orvi_students_{{ class.id }}"
+                                                   value="{% if summary %}{{ orvi_ids_by_class|dict_get:class.id }}{% endif %}">
+
+                                            <div class="selected-orvi-students" id="selected-orvi-students-{{ class.id }}">
+                                                {% if summary %}
+                                                    <ul class="pill-list">
+                                                        {% for a in summary.absent_students.all %}
+                                                            {% if a.reason == 'orvi' %}
+                                                                <li class="pill">{{ a.student.full_name }}</li>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% else %}
+                                                    <span class="text-secondary">Ученики не выбраны</span>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="field-error" id="error-orvi-{{ class.id }}"></div>
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+                                <td data-label="Другие">
+                                    {% if summary and edit_class_id != class.id %}
+                                        <span>{{ summary.other_disease_count }}</span>
+                                    {% else %}
+                                        <input type="number"
+                                               name="other_disease_{{ forloop.counter0 }}"
+                                               class="form-control form-control-sm"
+                                               min="0"
+                                               required
+                                               placeholder="0"
+                                               value="{% if summary %}{{ summary.other_disease_count }}{% endif %}">
+                                    {% endif %}
+                                </td>
+
+                                <td data-label="Ученики (другие)">
+                                    {% if summary and edit_class_id != class.id %}
+                                        {% if summary.absent_students.all %}
+                                            <ul class="pill-list">
+                                                {% for a in summary.absent_students.all %}
+                                                    {% if a.reason == 'other_disease' %}
+                                                        <li class="pill">{{ a.student.full_name }}</li>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="text-secondary">Нет данных</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="absent-cell">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-warning open-modal-btn"
+                                                    data-class-id="{{ class.id }}"
+                                                    data-mode="other">
+                                                <i class="bi bi-clipboard2-pulse me-1"></i> Выбрать
+                                            </button>
+
+                                            <input type="hidden"
+                                                   id="other-students-{{ class.id }}"
+                                                   name="other_students_{{ class.id }}"
+                                                   value="{% if summary %}{{ other_ids_by_class|dict_get:class.id }}{% endif %}">
+
+                                            <div class="selected-other-students" id="selected-other-students-{{ class.id }}">
+                                                {% if summary %}
+                                                    <ul class="pill-list">
+                                                        {% for a in summary.absent_students.all %}
+                                                            {% if a.reason == 'other_disease' %}
+                                                                <li class="pill">{{ a.student.full_name }}</li>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% else %}
+                                                    <span class="text-secondary">Ученики не выбраны</span>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="field-error" id="error-other-{{ class.id }}"></div>
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+                                <td data-label="Семейные">
+                                    {% if summary and edit_class_id != class.id %}
+                                        <span>{{ summary.family_reason_count }}</span>
+                                    {% else %}
+                                        <input type="number"
+                                               name="family_{{ forloop.counter0 }}"
+                                               class="form-control form-control-sm"
+                                               min="0"
+                                               required
+                                               placeholder="0"
+                                               value="{% if summary %}{{ summary.family_reason_count }}{% endif %}">
+                                    {% endif %}
+                                </td>
+
+                                <td data-label="Ученики (сем.)">
+                                    {% if summary and edit_class_id != class.id %}
+                                        {% if summary.absent_students.all %}
+                                            <ul class="pill-list">
+                                                {% for a in summary.absent_students.all %}
+                                                    {% if a.reason == 'family' %}
+                                                        <li class="pill">{{ a.student.full_name }}</li>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="text-secondary">Нет данных</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="absent-cell">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-warning open-modal-btn"
+                                                    data-class-id="{{ class.id }}"
+                                                    data-mode="family">
+                                                <i class="bi bi-people me-1"></i> Выбрать
+                                            </button>
+
+                                            <input type="hidden"
+                                                   id="family-students-{{ class.id }}"
+                                                   name="family_students_{{ class.id }}"
+                                                   value="{% if summary %}{{ family_ids_by_class|dict_get:class.id }}{% endif %}">
+
+                                            <div class="selected-family-students" id="selected-family-students-{{ class.id }}">
+                                                {% if summary %}
+                                                    <ul class="pill-list">
+                                                        {% for a in summary.absent_students.all %}
+                                                            {% if a.reason == 'family' %}
+                                                                <li class="pill">{{ a.student.full_name }}</li>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% else %}
+                                                    <span class="text-secondary">Ученики не выбраны</span>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="field-error" id="error-family-{{ class.id }}"></div>
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+                                <td data-label="Все отсутствующие">
+                                    {% if summary and edit_class_id != class.id %}
+                                        {% if summary.absent_students.all %}
+                                            <ul class="pill-list">
+                                                {% for a in summary.absent_students.all %}
+                                                    <li class="pill">{{ a.student.full_name }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="text-secondary">Нет данных</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="absent-cell">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-warning open-modal-btn"
+                                                    data-class-id="{{ class.id }}"
+                                                    data-mode="all">
+                                                <i class="bi bi-list-check me-1"></i> Выбрать всех
+                                            </button>
+
+                                            <input type="hidden"
+                                                   id="all-absent-students-{{ class.id }}"
+                                                   name="all_absent_students_{{ class.id }}"
+                                                   value="{% if summary %}{{ all_absent_ids_by_class|dict_get:class.id }}{% endif %}">
+
+                                            <div class="selected-all-students" id="selected-all-students-{{ class.id }}">
+                                                {% if summary %}
+                                                    <ul class="pill-list">
+                                                        {% for a in summary.absent_students.all %}
+                                                            <li class="pill">{{ a.student.full_name }}</li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% else %}
+                                                    <span class="text-secondary">Ученики не выбраны</span>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="field-error" id="error-all-{{ class.id }}"></div>
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+                                <td data-label="Пришло по факту">
+                                    {% if summary and edit_class_id != class.id %}
+                                        <span>{{ summary.present_count_reported }}</span>
+                                    {% else %}
+                                        <input type="number"
+                                               name="reported_present_{{ forloop.counter0 }}"
+                                               class="form-control form-control-sm"
+                                               min="0"
+                                               placeholder="Авто"
+                                               readonly
+                                               value="{% if summary %}{{ summary.present_count_reported }}{% endif %}">
+                                    {% endif %}
+                                </td>
+
+                            </tr>
+                            {% endwith %}
+                            {% endwith %}
+                        {% empty %}
+                            <tr>
+                                <td colspan="12" class="text-center text-secondary py-4">
+                                    Классы не найдены. Проверьте, что они созданы в админке
+                                    и закреплены за вашим пользователем.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
 
             {% if classes %}
                 <div class="d-flex justify-content-end mt-3">
@@ -494,76 +522,76 @@
                     {% endif %}
                 </div>
             {% endif %}
-        </form>
+            </form>
 
-        <hr class="my-4 border-secondary-subtle">
+            <hr class="my-4 border-secondary-subtle">
 
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-            <h2 class="h5 mb-0">
-                <i class="bi bi-star-fill me-1 text-warning"></i> Льготники (сейчас в школе)
-            </h2>
-        </div>
-
-        <div class="summary-bar mb-3">
-            <div class="summary-item">
-                <span class="summary-label">Льготников в системе</span>
-                <span class="summary-value">{{ total_privileged_all|default:"0" }}</span>
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                <h2 class="h5 mb-0">
+                    <i class="bi bi-star-fill me-1 text-warning"></i> Льготники (сейчас в школе)
+                </h2>
             </div>
-            <div class="summary-item">
-                <span class="summary-label">Льготников сейчас в школе</span>
-                <span class="summary-value">{{ total_privileged_present_all|default:"0" }}</span>
-            </div>
-        </div>
 
-        <div class="app-table" data-app-table>
-            <div class="app-table__toolbar">
-                <div class="app-table__toolbar-actions ms-auto">
-                    <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
-                        <i class="bi bi-clipboard me-1"></i> Скопировать
-                    </button>
-                    <span class="app-table__copy-status" data-copy-status></span>
+            <div class="summary-bar mb-3">
+                <div class="summary-item">
+                    <span class="summary-label">Льготников в системе</span>
+                    <span class="summary-value">{{ total_privileged_all|default:"0" }}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Льготников сейчас в школе</span>
+                    <span class="summary-value">{{ total_privileged_present_all|default:"0" }}</span>
                 </div>
             </div>
-            <div class="table-responsive app-table__scroll">
-                <table class="table table-dark table-striped table-hover align-middle mb-0 table-main priv-table app-table__table app-table--stack"
-                       data-app-table-target
-                       data-sort-columns="class,number,number,none">
-                <thead>
-                <tr>
-                    <th class="text-nowrap">Класс</th>
-                    <th>Льготников в системе</th>
-                    <th>Сейчас в школе</th>
-                    <th class="text-nowrap">Список</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for class in classes %}
-                    {% with pt=privileged_total_by_class|dict_get:class.id pp=privileged_present_count_by_class|dict_get:class.id %}
-                        <tr>
-                            <td class="fw-semibold stack-head-cell" data-label="Класс">
-                                <span class="badge rounded-pill text-bg-primary">{{ class.name }}</span>
-                            </td>
-                            <td data-label="Льготников в системе"><span>{{ pt|default:"0" }}</span></td>
-                            <td data-label="Сейчас в школе"><span>{{ pp|default:"0" }}</span></td>
-                            <td data-label="Список">
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-info open-privileged-modal-btn"
-                                        data-class-id="{{ class.id }}"
-                                        data-class-name="{{ class.name }}">
-                                    <i class="bi bi-eye me-1"></i> Открыть
-                                </button>
-                            </td>
-                        </tr>
-                    {% endwith %}
-                {% empty %}
+
+            <div class="app-table" data-app-table>
+                <div class="app-table__toolbar">
+                    <div class="app-table__toolbar-actions ms-auto">
+                        <button type="button" class="btn btn-outline-light btn-sm" data-table-copy>
+                            <i class="bi bi-clipboard me-1"></i> Скопировать
+                        </button>
+                        <span class="app-table__copy-status" data-copy-status></span>
+                    </div>
+                </div>
+                <div class="table-responsive app-table__scroll">
+                    <table class="table table-dark table-striped table-hover align-middle mb-0 table-main priv-table app-table__table app-table--stack"
+                           data-app-table-target
+                           data-sort-columns="class,number,number,none">
+                    <thead>
                     <tr>
-                        <td colspan="4" class="text-center text-secondary py-3">Классы не найдены</td>
+                        <th class="text-nowrap">Класс</th>
+                        <th>Льготников в системе</th>
+                        <th>Сейчас в школе</th>
+                        <th class="text-nowrap">Список</th>
                     </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                    {% for class in classes %}
+                        {% with pt=privileged_total_by_class|dict_get:class.id pp=privileged_present_count_by_class|dict_get:class.id %}
+                            <tr>
+                                <td class="fw-semibold stack-head-cell" data-label="Класс">
+                                    <span class="badge rounded-pill text-bg-primary">{{ class.name }}</span>
+                                </td>
+                                <td data-label="Льготников в системе"><span>{{ pt|default:"0" }}</span></td>
+                                <td data-label="Сейчас в школе"><span>{{ pp|default:"0" }}</span></td>
+                                <td data-label="Список">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-info open-privileged-modal-btn"
+                                            data-class-id="{{ class.id }}"
+                                            data-class-name="{{ class.name }}">
+                                        <i class="bi bi-eye me-1"></i> Открыть
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endwith %}
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-secondary py-3">Классы не найдены</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
 
         {% for class in classes %}
             <div id="students-container-{{ class.id }}" class="hidden-students-container">
@@ -591,11 +619,27 @@
             </div>
         {% endfor %}
 
-
     </div>
-</div>
+    </div>
 
-{% block script %}
-    <script src="{% static 'attendance/js/index.js' %}"></script>
-{% endblock %}
+    {% block script %}
+        <script src="{% static 'attendance/js/index.js' %}"></script>
+    {% endblock %}
+
+{% else %}
+
+    {# ✅ БЛОК-ЗАГЛУШКА ДЛЯ ВЫХОДНЫХ #}
+    <div class="container-fluid h-100 d-flex flex-column justify-content-center">
+        <div class="weekend-placeholder">
+            <div class="weekend-icon">
+                <i class="bi bi-cup-hot"></i>
+            </div>
+            <div class="weekend-title">СЕГОДНЯ ВЫХОДНОЙ</div>
+            <p>Заполнение посещаемости не требуется.</p>
+            <p class="small text-secondary">{{ today|date:"d.m.Y" }}</p>
+        </div>
+    </div>
+
+{% endif %}
+
 {% endblock %}

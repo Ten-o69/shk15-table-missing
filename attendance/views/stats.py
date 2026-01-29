@@ -9,6 +9,7 @@ from django.core.serializers.json import DjangoJSONEncoder  # <--- Вернул�
 
 from database.models import ClassRoom, Student, AttendanceSummary, AbsentStudent
 from ..utils import class_sort_key
+from ..services import school_calendar
 from .auth import deny_substitute_access, is_deputy
 
 
@@ -105,8 +106,7 @@ def statistics(request):
     total_students_count = Student.objects.filter(is_active=True).count()
 
     # --- ГРАФИКИ ---
-    _, last_day = calendar.monthrange(year, month)
-    month_days = [timezone.datetime(year, month, d).date() for d in range(1, last_day + 1)]
+    month_days = school_calendar.get_working_days_in_month(year, month)
 
     summary_map = defaultdict(dict)
     for s in monthly_qs:

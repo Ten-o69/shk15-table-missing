@@ -10,6 +10,7 @@ from django.utils import timezone
 from database.models import ClassRoom, Student, AttendanceSummary, AbsentStudent
 from school_attendance.settings import DEBUG
 from ..utils import class_sort_key
+from ..services import school_calendar  # ✅ Import calendar service
 
 
 @login_required
@@ -18,6 +19,7 @@ def index(request):
     Главная страница:
     - показывает таблицу только по тем классам, которые закреплены за пользователем
     - обработка POST запроса на сохранение посещаемости
+    - ⛔️ Блокирует сохранение в выходные/праздники
     """
     if request.GET.get('test_date') and DEBUG:
         try:
@@ -26,6 +28,9 @@ def index(request):
             today = timezone.localdate()
     else:
         today = timezone.localdate()
+
+    # ✅ Проверка: рабочий ли сегодня день?
+    is_work_day = school_calendar.is_school_day(today)
 
     user = request.user
     user_is_deputy = user.groups.filter(name='Завуч').exists()
@@ -128,6 +133,11 @@ def index(request):
 
     # ===== POST Handling =====
     if request.method == 'POST':
+        # ✅ Блокировка сохранения в выходной/праздничный день
+        if not is_work_day:
+            messages.error(request, 'Сегодня выходной или праздничный день. Заполнение посещаемости закрыто.')
+            return redirect('index')
+
         row_count = int(request.POST.get('row_count', 0))
         edit_class_post = request.POST.get('edit_class')
         edit_class_post = int(edit_class_post) if (edit_class_post and str(edit_class_post).isdigit()) else None
@@ -226,7 +236,16 @@ def index(request):
                 existing.other_disease_count = other_disease_count
                 existing.family_reason_count = family_reason_count
                 existing.created_by = user
-                existing.save()
+                existing.save(update_fields=[
+                    'present_count_auto',
+                    'present_count_reported',
+                    'unexcused_absent_count',
+                    'orvi_count',
+                    'other_disease_count',
+                    'family_reason_count',
+                    'created_by',
+                ])
+
                 AbsentStudent.objects.filter(attendance=existing).delete()
                 summary_obj = existing
             else:
@@ -316,6 +335,9 @@ def index(request):
 
     context = {
         'today': today,
+        # ✅ Передаем флаг в шаблон
+        'is_work_day': is_work_day,
+
         'classes': classes,
         'summary_by_class': summary_by_class,
         'totals_saved': totals_saved,
