@@ -336,3 +336,7 @@
 .apexcharts-gridline {
     stroke: var(--border) !important;
 }
+
+.apexcharts-legend-text {
+  color: var(--text) !important;
+}
