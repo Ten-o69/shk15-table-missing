@@ -193,16 +193,17 @@
 
 
   // ==========================================
-  // APEX CHARTS INIT (DIRECT VARIABLE)
-  // ==========================================
-// ==========================================
-  // APEX CHARTS INIT (FINAL WITH COUNTS)
+  // APEX CHARTS INIT (THEME AWARE)
   // ==========================================
   function initCharts() {
     if (!window.ApexCharts) return console.error("ApexCharts library missing");
 
     const chartData = window.APP_CHART_DATA;
     if (!chartData || !chartData.heatmap) return;
+
+    // ✅ Определяем текущую тему из HTML тега (data-theme="light" или "dark")
+    // Если атрибута нет, считаем dark по умолчанию
+    const currentTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
 
     const commonOptions = {
       chart: {
@@ -211,52 +212,63 @@
         animations: { enabled: false },
         redrawOnParentResize: true
       },
-      theme: { mode: 'dark' },
+      // ✅ Передаем тему в ApexCharts, чтобы он сам покрасил оси и подписи
+      theme: {
+          mode: currentTheme
+      },
       dataLabels: { enabled: false },
-      grid: { borderColor: '#444', strokeDashArray: 4 },
+      // Убираем явный цвет сетки, пусть ApexCharts сам решит, или используем прозрачный
+      grid: {
+          strokeDashArray: 4,
+          borderColor: currentTheme === 'light' ? '#e5e7eb' : '#374151'
+      },
     };
 
-    // --- Helper для генерации HTML тултипа ---
+    // --- Helper для генерации HTML тултипа (Без хардкода цветов!) ---
     const generateTooltipHtml = (title, date, counts, percentVal) => {
         if (!counts) {
-             return `<div class="px-2 py-1 small" style="background: #333; border: 1px solid #555;">
-                <div class="fw-bold text-white mb-1">${title} (${date})</div>
-                <div class="text-secondary">❌ Отчет не сдан</div></div>`;
+             return `
+             <div class="chart-tooltip">
+                <div class="chart-tooltip-header">
+                    <span>${title} (${date})</span>
+                </div>
+                <div class="text-secondary">❌ Отчет не сдан</div>
+             </div>`;
         }
 
-        // Логика цвета заголовка (процент все еще важен для статуса)
-        let clr = percentVal >= 95 ? '#198754' : (percentVal >= 85 ? '#ffc107' : '#dc3545'); // hex цвета bootstrap
+        // Цвета Bootstrap (success/warning/danger) видны и на светлом, и на темном
+        let clrClass = percentVal >= 95 ? 'text-success' : (percentVal >= 85 ? 'text-warning' : 'text-danger');
 
         return `
-        <div class="px-3 py-2 small" style="background: #2b3035; border: 1px solid #495057; min-width: 150px;">
-            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
-                <span class="fw-bold text-white">${title}</span>
-                <span style="color: ${clr}; font-weight: bold;">${percentVal}%</span>
+        <div class="chart-tooltip">
+            <div class="chart-tooltip-header">
+                <span>${title}</span>
+                <span class="${clrClass}">${percentVal}%</span>
             </div>
             
-            <div class="d-flex justify-content-between mb-1">
+            <div class="chart-tooltip-row">
                 <span class="text-success">Присутствуют:</span>
-                <span class="fw-bold text-white">${counts.p}</span>
+                <span class="fw-bold">${counts.p}</span>
             </div>
             ${counts.u > 0 ? `
-            <div class="d-flex justify-content-between mb-1">
+            <div class="chart-tooltip-row">
                 <span class="text-danger">Неуваж.:</span>
-                <span class="fw-bold text-white">${counts.u}</span>
+                <span class="fw-bold">${counts.u}</span>
             </div>` : ''}
             ${counts.o > 0 ? `
-            <div class="d-flex justify-content-between mb-1">
+            <div class="chart-tooltip-row">
                 <span class="text-warning">ОРВИ:</span>
-                <span class="fw-bold text-white">${counts.o}</span>
+                <span class="fw-bold">${counts.o}</span>
             </div>` : ''}
             ${counts.d > 0 ? `
-            <div class="d-flex justify-content-between mb-1">
+            <div class="chart-tooltip-row">
                 <span class="text-info">Другие:</span>
-                <span class="fw-bold text-white">${counts.d}</span>
+                <span class="fw-bold">${counts.d}</span>
             </div>` : ''}
             ${counts.f > 0 ? `
-            <div class="d-flex justify-content-between">
+            <div class="chart-tooltip-row">
                 <span class="text-secondary">Семейные:</span>
-                <span class="fw-bold text-white">${counts.f}</span>
+                <span class="fw-bold">${counts.f}</span>
             </div>` : ''}
         </div>`;
     };
@@ -276,7 +288,6 @@
         xaxis: { tooltip: { enabled: false }, axisBorder: { show: false }, axisTicks: { show: false } },
         tooltip: {
             custom: function({series, seriesIndex, dataPointIndex, w}) {
-                // Достаем кастомные данные из config
                 const dataPoint = w.config.series[seriesIndex].data[dataPointIndex];
                 const date = dataPoint.x;
                 const counts = dataPoint.counts;
@@ -309,7 +320,11 @@
             }
           }
         },
-        stroke: { width: 1, colors: ['#212529'] },
+        // Цвет границ квадратиков зависит от темы (чтобы сливался с фоном)
+        stroke: {
+            width: 1,
+            colors: [currentTheme === 'light' ? '#ffffff' : '#212529']
+        },
         grid: { padding: { right: 20 } },
         xaxis: { tooltip: { enabled: false } },
         tooltip: {

@@ -279,3 +279,60 @@
   border-color: rgba(37,99,235,0.18);
   color: var(--text);
 }
+
+/* =========================
+   ApexCharts Theme Fixes
+   ========================= */
+
+/* Адаптивный тултип для графиков */
+.chart-tooltip {
+    background-color: var(--bg-elevated) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-size: 0.85rem;
+    min-width: 160px;
+}
+
+.chart-tooltip-header {
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chart-tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.chart-tooltip-row:last-child {
+    margin-bottom: 0;
+}
+
+/* Принудительно убираем стандартные стили ApexCharts, чтобы не мешали */
+.apexcharts-tooltip {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.apexcharts-tooltip-title {
+    background: transparent !important;
+    border: none !important;
+}
+
+.apexcharts-text {
+    fill: var(--text) !important;
+}
+
+/* Сетка графика */
+.apexcharts-gridline {
+    stroke: var(--border) !important;
+}
