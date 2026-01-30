@@ -21,3 +21,19 @@ def class_sort_key(value):
     number = int(match.group(1))
     suffix = (match.group(2) or '').strip().lower()
     return (number, suffix)
+
+
+def parse_int_param(value, default, min_value=None, max_value=None):
+    try:
+        if value is None or value == "":
+            num = default
+        else:
+            num = int(value)
+    except (TypeError, ValueError):
+        return default
+
+    if min_value is not None and num < min_value:
+        return default
+    if max_value is not None and num > max_value:
+        return default
+    return num

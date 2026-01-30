@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder  # <--- Вернули импорт
 
 from database.models import ClassRoom, Student, AttendanceSummary, AbsentStudent
-from ..utils import class_sort_key
+from ..utils import class_sort_key, parse_int_param
 from ..services import school_calendar
 from .auth import deny_substitute_access, is_deputy
 
@@ -18,8 +18,8 @@ from .auth import deny_substitute_access, is_deputy
 @user_passes_test(is_deputy)
 def statistics(request):
     today = timezone.localdate()
-    month = int(request.GET.get('month', today.month))
-    year = int(request.GET.get('year', today.year))
+    month = parse_int_param(request.GET.get('month'), today.month, min_value=1, max_value=12)
+    year = parse_int_param(request.GET.get('year'), today.year, min_value=1970, max_value=2100)
 
     # 1. Базовые данные
     monthly_qs = AttendanceSummary.objects.filter(

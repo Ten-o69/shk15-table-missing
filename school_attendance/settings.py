@@ -2,14 +2,14 @@ from pathlib import Path
 import os
 
 from dotenv import load_dotenv
-from .utils import get_env_list
+from .utils import get_env_list, get_env_bool
 
 load_dotenv(".env")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
-DEBUG = os.environ.get('DJANGO_DEBUG', False)
+DEBUG = get_env_bool('DJANGO_DEBUG', False)
 
 ALLOWED_HOSTS = get_env_list('DJANGO_ALLOWED_HOSTS')
 

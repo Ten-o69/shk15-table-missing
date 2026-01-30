@@ -80,7 +80,7 @@ def index(request):
     can_edit_by_class = {}
 
     for s in summaries:
-        deadline = s.created_at + timedelta(hours=5)
+        deadline = s.created_at + timedelta(minutes=30)
         edit_deadline_by_class[s.class_room_id] = deadline
         can_edit_by_class[s.class_room_id] = now_dt <= deadline
 
