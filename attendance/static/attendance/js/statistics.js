@@ -185,12 +185,230 @@
   document.addEventListener("shown.bs.collapse", e => {
      const k = e.target.getAttribute("data-section-collapse");
      if(k) setButtonExpanded(k, true);
+     if (k === "visuals") {
+       if (window.__heatmapChart && typeof window.__heatmapChart.resize === "function") {
+         window.__heatmapChart.resize();
+       }
+       setTimeout(() => scheduleHeatmapSync(), 60);
+     }
   });
   document.addEventListener("hidden.bs.collapse", e => {
      const k = e.target.getAttribute("data-section-collapse");
      if(k) setButtonExpanded(k, false);
   });
 
+
+  function sortHeatmapSeries(series) {
+    if (!window.ClassSort || !Array.isArray(series)) return Array.isArray(series) ? series : [];
+    return window.ClassSort.sortByClassName(series, item => (item && item.name) || "");
+  }
+
+  function reorderHeatmapSideList(series) {
+    const list = document.querySelector(".heatmap-side__list");
+    if (!list || !Array.isArray(series)) return;
+    const items = new Map();
+    list.querySelectorAll(".heatmap-side__item").forEach(item => {
+      const name = (item.dataset.className || item.textContent || "").trim();
+      if (name) items.set(name, item);
+    });
+    list.innerHTML = "";
+    series.forEach(s => {
+      const name = (s && s.name) || "";
+      const item = items.get(name);
+      if (item) list.appendChild(item);
+    });
+    items.forEach(item => {
+      if (!list.contains(item)) list.appendChild(item);
+    });
+  }
+
+  function parseTranslateY(transform) {
+    if (!transform) return null;
+    const match = transform.match(/translate\(([^)]+)\)/);
+    if (!match) return null;
+    const parts = match[1].split(/[ ,]+/).filter(Boolean);
+    if (parts.length < 2) return null;
+    const y = parseFloat(parts[1]);
+    return Number.isFinite(y) ? y : null;
+  }
+
+  function getRowMetricsFromRects(chartEl, rowCount) {
+    const rects = Array.from(chartEl.querySelectorAll(".apexcharts-heatmap-rect"));
+    if (!rects.length) return null;
+
+    const chartRect = chartEl.getBoundingClientRect();
+    const centers = [];
+    let rectHeight = null;
+
+    rects.forEach(rect => {
+      const r = rect.getBoundingClientRect();
+      if (r.height > 0) {
+        const center = (r.top - chartRect.top) + (r.height / 2);
+        centers.push(Math.round(center * 10) / 10);
+        if (rectHeight == null) rectHeight = r.height;
+      }
+    });
+
+    if (!centers.length) return null;
+    centers.sort((a, b) => a - b);
+
+    const rows = [];
+    centers.forEach(c => {
+      const last = rows[rows.length - 1];
+      if (last == null || Math.abs(c - last) > 1) rows.push(c);
+    });
+
+    if (rowCount && rows.length && Math.abs(rows.length - rowCount) > 2) {
+      return null;
+    }
+
+    let rowHeight = rectHeight;
+    if (rows.length > 1) {
+      const diffs = rows.slice(1).map((y, i) => y - rows[i]);
+      const avg = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+      if (Number.isFinite(avg) && avg > 0) rowHeight = avg;
+    }
+
+    if (!rowHeight || rowHeight <= 0) return null;
+    const topPad = rows[0] - (rowHeight / 2);
+
+    return { rowHeight, topPad };
+  }
+
+  function getSeriesRowCenters(chartEl, seriesOrder) {
+    const seriesEls = Array.from(chartEl.querySelectorAll(".apexcharts-series"));
+    if (!seriesEls.length) return [];
+    const centers = [];
+
+    seriesEls.forEach((seriesEl, idx) => {
+      const rect = seriesEl.querySelector(".apexcharts-heatmap-rect");
+      if (!rect) return;
+      const r = rect.getBoundingClientRect();
+      if (!r.height) return;
+      const name = seriesEl.getAttribute("seriesname")
+        || seriesEl.getAttribute("seriesName")
+        || (seriesOrder[idx] && seriesOrder[idx].name);
+      if (!name) return;
+      centers.push({ name, center: r.top + (r.height / 2) });
+    });
+
+    return centers;
+  }
+
+  function resetHeatmapSideItems(list) {
+    if (!list) return;
+    list.style.height = "";
+    list.style.paddingTop = "";
+    list.querySelectorAll(".heatmap-side__item").forEach(item => {
+      item.style.position = "";
+      item.style.left = "";
+      item.style.right = "";
+      item.style.top = "";
+      item.style.transform = "";
+    });
+  }
+
+  function positionHeatmapSideItems() {
+    const list = document.querySelector(".heatmap-side__list");
+    const chartEl = document.querySelector("#chart-heatmap");
+    const seriesOrder = (window.APP_CHART_DATA && Array.isArray(window.APP_CHART_DATA.heatmap))
+      ? window.APP_CHART_DATA.heatmap
+      : [];
+
+    if (!list || !chartEl || !seriesOrder.length) return false;
+
+    const chartRect = chartEl.getBoundingClientRect();
+    const listRect = list.getBoundingClientRect();
+    if (!chartRect.height) return false;
+
+    const centers = getSeriesRowCenters(chartEl, seriesOrder);
+    if (!centers.length) return false;
+
+    list.style.height = `${chartRect.height}px`;
+    list.style.paddingTop = "0";
+
+    const items = new Map();
+    list.querySelectorAll(".heatmap-side__item").forEach(item => {
+      const name = (item.dataset.className || item.textContent || "").trim();
+      if (name) items.set(name, item);
+    });
+
+    centers.forEach(({ name, center }) => {
+      const item = items.get(name);
+      if (!item) return;
+      const top = center - listRect.top;
+      item.style.position = "absolute";
+      item.style.left = "0";
+      item.style.right = "0";
+      item.style.top = `${top}px`;
+      item.style.transform = "translateY(-50%)";
+    });
+
+    return true;
+  }
+
+  function syncHeatmapSideLayout() {
+    const grid = document.querySelector(".heatmap-grid");
+    const chartEl = document.querySelector("#chart-heatmap");
+    const plotEl = chartEl ? chartEl.querySelector(".apexcharts-plot-area") : null;
+    const rows = (window.APP_CHART_DATA && Array.isArray(window.APP_CHART_DATA.heatmap))
+      ? window.APP_CHART_DATA.heatmap.length
+      : 0;
+
+    if (!grid || !chartEl || !rows) return false;
+
+    if (window.matchMedia && window.matchMedia("(max-width: 992px)").matches) {
+      const list = document.querySelector(".heatmap-side__list");
+      resetHeatmapSideItems(list);
+      return true;
+    }
+
+    if (positionHeatmapSideItems()) return true;
+
+    const rectMetrics = getRowMetricsFromRects(chartEl, rows);
+    if (rectMetrics) {
+      grid.style.setProperty("--heatmap-row-h", `${rectMetrics.rowHeight}px`);
+      grid.style.setProperty("--heatmap-top-pad", `${rectMetrics.topPad}px`);
+      return true;
+    }
+
+    if (!plotEl) return false;
+
+    let plotHeight = 0;
+    if (typeof plotEl.getBBox === "function") {
+      try { plotHeight = plotEl.getBBox().height || 0; } catch (e) { plotHeight = 0; }
+    }
+    if (!plotHeight) {
+      const plotRect = plotEl.getBoundingClientRect();
+      plotHeight = plotRect.height || 0;
+    }
+
+    if (!plotHeight || plotHeight < 1) return false;
+
+    let topPad = parseTranslateY(plotEl.getAttribute("transform"));
+    if (topPad == null) {
+      const chartRect = chartEl.getBoundingClientRect();
+      const plotRect = plotEl.getBoundingClientRect();
+      topPad = plotRect.top - chartRect.top;
+    }
+
+    const rowHeight = plotHeight / rows;
+    if (Number.isFinite(rowHeight) && rowHeight > 0) {
+      grid.style.setProperty("--heatmap-row-h", `${rowHeight}px`);
+    }
+    if (Number.isFinite(topPad)) {
+      grid.style.setProperty("--heatmap-top-pad", `${topPad}px`);
+    }
+    return true;
+  }
+
+
+  function scheduleHeatmapSync(retry = 0) {
+    if (syncHeatmapSideLayout()) return;
+    if (retry < 12) {
+      requestAnimationFrame(() => scheduleHeatmapSync(retry + 1));
+    }
+  }
 
   // ==========================================
   // APEX CHARTS INIT (THEME AWARE)
@@ -199,7 +417,12 @@
     if (!window.ApexCharts) return console.error("ApexCharts library missing");
 
     const chartData = window.APP_CHART_DATA;
-    if (!chartData || !chartData.heatmap) return;
+    if (!chartData || !Array.isArray(chartData.heatmap)) return;
+
+    const sortedHeatmap = sortHeatmapSeries(chartData.heatmap);
+    const chartHeatmap = [...sortedHeatmap].reverse();
+    chartData.heatmap = chartHeatmap;
+    reorderHeatmapSideList(chartHeatmap);
 
     // ✅ Определяем текущую тему из HTML тега (data-theme="light" или "dark")
     // Если атрибута нет, считаем dark по умолчанию
@@ -304,10 +527,10 @@
       hEl.innerHTML = "";
       const hHeight = Math.max(400, (chartData.heatmap.length * 28) + 50);
 
-      new ApexCharts(hEl, {
+      const heatmapChart = new ApexCharts(hEl, {
         ...commonOptions,
         series: chartData.heatmap,
-        chart: { ...commonOptions.chart, type: 'heatmap', height: hHeight },
+        chart: { ...commonOptions.chart, type: 'heatmap', height: hHeight, events: { mounted: () => scheduleHeatmapSync(), updated: () => scheduleHeatmapSync() } },
         plotOptions: {
           heatmap: {
             shadeIntensity: 0.5, radius: 4, useFillColorAsStroke: false,
@@ -338,7 +561,22 @@
                 return generateTooltipHtml(className, date, counts, val);
             }
         }
-      }).render();
+      });
+
+      window.__heatmapChart = heatmapChart;
+
+      const renderResult = heatmapChart.render();
+      const afterRender = () => {
+        reorderHeatmapSideList(chartData.heatmap);
+        scheduleHeatmapSync();
+        setTimeout(() => scheduleHeatmapSync(), 200);
+      };
+      if (renderResult && typeof renderResult.then === "function") {
+        renderResult.then(() => afterRender());
+      } else {
+        afterRender();
+      }
+      window.addEventListener("resize", () => scheduleHeatmapSync());
     }
   }
 

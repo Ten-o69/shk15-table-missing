@@ -5,7 +5,7 @@
 {% block title %}Статистика посещаемости{% endblock %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{% static 'attendance/css/statistics.css' %}">
+  <link rel="stylesheet" href="{% static 'attendance/css/statistics.css' %}?v=20260130d">
 {% endblock %}
 
 {% block content %}
@@ -180,7 +180,22 @@
               <div class="col-12">
                   <div class="app-panel p-3">
                       <div class="text-secondary small mb-2">Детализация по классам (наведите на ячейку)</div>
-                      <div id="chart-heatmap" style="min-height: 400px;"></div>
+                      <div class="heatmap-grid" style="--heatmap-row-h: 28px; --heatmap-top-pad: 26px;">
+                        <div class="heatmap-chart">
+                          <div id="chart-heatmap" style="min-height: 400px;"></div>
+                        </div>
+                        <div class="heatmap-side">
+                          <div class="heatmap-side__title">Отчеты</div>
+                          <ul class="heatmap-side__list">
+                            {% for row in heatmap_rows %}
+                              <li class="heatmap-side__item" title="{{ row.class_name }}" data-class-name="{{ row.class_name }}">
+                                <span class="heatmap-side__class">{{ row.class_name }}</span>
+                                <span class="heatmap-side__ratio">{{ row.report_count }}/{{ working_days_count }}</span>
+                              </li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                      </div>
                   </div>
               </div>
           </div>
@@ -555,5 +570,5 @@
 </script>
 
 <script src="{% static 'attendance/js/libs/apexcharts.min.js' %}"></script>
-<script src="{% static 'attendance/js/statistics.js' %}"></script>
+<script src="{% static 'attendance/js/statistics.js' %}?v=20260130d"></script>
 {% endblock %}

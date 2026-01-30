@@ -120,6 +120,21 @@ def statistics(request):
 
     # --- ГРАФИКИ ---
     month_days = school_calendar.get_working_days_in_month(year, month)
+    working_days_count = len(month_days)
+
+    working_qs = monthly_qs.filter(date__in=month_days) if month_days else monthly_qs.none()
+    month_counts_by_class = {
+        row['class_room_id']: row['cnt']
+        for row in working_qs.values('class_room_id').annotate(cnt=Count('id'))
+    }
+
+    heatmap_rows = [
+        {
+            'class_name': c.name,
+            'report_count': month_counts_by_class.get(c.id, 0),
+        }
+        for c in all_classes
+    ]
 
     summary_map = defaultdict(dict)
     for s in monthly_qs:
@@ -211,6 +226,8 @@ def statistics(request):
         'year': year,
         'privileged_types_by_class': privileged_types_by_class,
         'privileged_types_totals': privileged_types_totals,
+        'heatmap_rows': heatmap_rows,
+        'working_days_count': working_days_count,
 
         # ✅ Передаем ГОТОВУЮ JSON-строку
         'chart_data_json': json.dumps(raw_chart_data, cls=DjangoJSONEncoder),
