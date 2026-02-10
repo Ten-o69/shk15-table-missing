@@ -141,7 +141,10 @@
       row.dataset.name = item.labelLower;
 
       const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
+      checkbox.type = state.inputType === "radio" ? "radio" : "checkbox";
+      if (checkbox.type === "radio") {
+        checkbox.name = state.radioName;
+      }
       checkbox.value = item.id;
       checkbox.checked = state.selected.has(item.id);
       checkbox.disabled = item.disabled;
@@ -162,10 +165,17 @@
 
   listEl.addEventListener("change", (e) => {
     const cb = e.target.closest('input[type="checkbox"]');
-    if (!cb) return;
-    const id = String(cb.value);
-    if (cb.checked) state.selected.add(id);
-    else state.selected.delete(id);
+    const rb = e.target.closest('input[type="radio"]');
+    const input = cb || rb;
+    if (!input) return;
+    const id = String(input.value);
+    if (input.type === "radio") {
+      state.selected.clear();
+      state.selected.add(id);
+    } else {
+      if (input.checked) state.selected.add(id);
+      else state.selected.delete(id);
+    }
   });
 
   searchInput.addEventListener("input", renderList);
@@ -212,6 +222,8 @@
       items: normalizeItems(cfg.items || []),
       selectable,
       selected: selectedIds,
+      inputType: cfg.inputType === "radio" ? "radio" : "checkbox",
+      radioName: cfg.radioName || `table-modal-radio-${Date.now()}`,
       onApply: cfg.onApply || null,
       onSecondary: cfg.onSecondary || null,
       onClose: cfg.onClose || null,

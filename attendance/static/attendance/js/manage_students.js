@@ -63,7 +63,7 @@
 
       rows().forEach(r => {
         const name = (r.dataset.name || "").toLowerCase();
-        const cls = (r.dataset.class || "").toLowerCase();
+        const cls = (r.dataset.className || r.dataset.class || "").toLowerCase();
         const ptype = (r.dataset.privType || "").toLowerCase();
 
         const ok = !term || name.includes(term) || cls.includes(term) || ptype.includes(term);
@@ -183,6 +183,71 @@
     const cur = btn.dataset.currentTypes || "";
 
     openModal(sid, name, cur);
+  });
+
+  // ---------------------------------
+  // Class edit modal (for deputies)
+  // ---------------------------------
+  const classForm = $("#class-edit-form");
+  const classStudentId = $("#class-edit-student-id");
+  const classIdInput = $("#class-edit-class-id");
+  const classDataEl = $("#class-options-data");
+  let classOptions = [];
+  if (classDataEl) {
+    try {
+      classOptions = JSON.parse(classDataEl.textContent || "[]");
+    } catch {
+      classOptions = [];
+    }
+  }
+
+  function openClassModal(studentId, studentName, currentClassId) {
+    if (!tableModal) return;
+    if (!classForm || !classStudentId || !classIdInput) return;
+
+    const items = classOptions.map((c) => ({
+      id: String(c.id),
+      label: String(c.name || "").trim(),
+    }));
+
+    const selected = currentClassId ? [String(currentClassId)] : [];
+
+    tableModal.open({
+      title: "Смена класса",
+      subtitle: studentName ? `Ученик: ${studentName}` : "",
+      items,
+      selectable: true,
+      inputType: "radio",
+      selectedIds: selected,
+      searchPlaceholder: "Поиск по классу...",
+      sortOptions,
+      defaultSort: "default",
+      sortMode: "class",
+      applyLabel: "Сохранить",
+      cancelLabel: "Отмена",
+      size: "md",
+      hintText: "Выберите один класс.",
+      onApply: (selectedIds) => {
+        if (!selectedIds || selectedIds.length !== 1) {
+          alert("Нужно выбрать один класс.");
+          return false;
+        }
+        classStudentId.value = String(studentId || "");
+        classIdInput.value = String(selectedIds[0]);
+        classForm.submit();
+        return true;
+      },
+    });
+  }
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".js-open-class-edit");
+    if (!btn) return;
+
+    const sid = btn.dataset.studentId;
+    const name = btn.dataset.studentName || "";
+    const classId = btn.dataset.classId || "";
+    openClassModal(sid, name, classId);
   });
 
   // initial counters

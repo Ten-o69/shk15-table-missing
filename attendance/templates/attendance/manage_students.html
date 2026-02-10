@@ -9,7 +9,6 @@
 {% block content %}
 <div class="card page-wide shadow-sm">
   <div class="card-body p-3 p-lg-4">
-
     <div class="d-flex flex-column gap-2 mb-3">
       <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
         <div>
@@ -21,24 +20,58 @@
       </div>
     </div>
 
-    <!-- ФИЛЬТРЫ (GET) -->
+    <!-- Добавление нового ученика -->
+    {% if is_deputy %}
     <div class="card bg-transparent border-0 mb-3 app-panel">
       <div class="card-body p-3 p-lg-3">
+        <h3>Добавление нового ученика</h3>
+        <form method="post" class="row g-3 align-items-end">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_student">
+          <div class="col-12 col-lg-4">
+            <label class="form-label" for="student-full-name">ФИО</label>
+            <input id="student-full-name"
+                   type="text"
+                   name="full_name"
+                   class="form-control"
+                   placeholder="Например: Иванов Иван Иванович"
+                   required>
+          </div>
+          <div class="col-12 col-lg-2">
+            <label class="form-label" for="student-class">Класс</label>
+            <select id="student-class" name="class_id" class="form-select" required>
+              <option value="">Выберите класс</option>
+              {% for c in classes %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-md-2 d-flex justify-content-md-end">
+            <button class="btn btn-primary w-100 w-md-auto" type="submit">
+              <i class="bi bi-funnel me-1"></i> Применить
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
 
+    <!-- ПОИСК И ФИЛЬТРАЦИЯ -->
+    <div class="card bg-transparent border-0 mb-3 app-panel">
+      <div class="card-body p-3 p-lg-3">
+        <h3>Поиск и фильтрация</h3>
         <div class="row g-3 align-items-end">
           <div class="col-12 col-lg-8">
             <form method="get" class="row g-3 align-items-end">
-
               <div class="col-12 col-md-6">
-                <label class="form-label" for="q-input">Поиск (ФИО / класс)</label>
+                <label class="form-label" for="q-input">ФИО | Класс</label>
                 <input id="q-input"
-                       type="text"
-                       name="q"
-                       value="{{ q }}"
-                       class="form-control"
-                       placeholder="Например: Иванов или 3Б">
+                  type="text"
+                  name="q"
+                  value="{{ q }}"
+                  class="form-control"
+                  placeholder="Например: Иванов или 3Б">
               </div>
-
               <div class="col-12 col-md-3">
                 <label class="form-label" for="class-select">Класс</label>
                 <select id="class-select" name="class_id" class="form-select">
@@ -50,42 +83,35 @@
                   {% endfor %}
                 </select>
               </div>
-
+              <div class="col-12 col-md-3 d-flex justify-content-md-end">
+                  <button class="btn btn-primary w-100 w-md-auto" type="submit">
+                    <i class="bi bi-funnel me-1"></i> Применить
+                  </button>
+                </div>
               <div class="col-12 col-md-3">
-                <label class="form-label" for="sort-select">Сортировка</label>
-                <select id="sort-select" name="sort" class="form-select">
+                  <label class="form-label" for="sort-select">Сортировка</label>
+                  <select id="sort-select" name="sort" class="form-select">
                   <option value="class_asc"  {% if sort == 'class_asc' %}selected{% endif %}>Класс ↑, ФИО ↑</option>
                   <option value="class_desc" {% if sort == 'class_desc' %}selected{% endif %}>Класс ↓, ФИО ↑</option>
                   <option value="name_asc"   {% if sort == 'name_asc' %}selected{% endif %}>ФИО ↑</option>
                   <option value="name_desc"  {% if sort == 'name_desc' %}selected{% endif %}>ФИО ↓</option>
                 </select>
               </div>
-
-              <div class="col-12 col-md-6 d-flex align-items-center gap-2">
+              <div class="col-12 col-md-3 d-flex align-items-center gap-2">
                 <div class="form-check">
                   <input class="form-check-input"
-                         type="checkbox"
-                         id="show-inactive"
-                         name="show_inactive"
-                         value="1"
-                         {% if show_inactive %}checked{% endif %}>
-                  <label class="form-check-label" for="show-inactive">
-                    Показать удалённых
-                  </label>
+                    type="checkbox"
+                    id="show-inactive"
+                    name="show_inactive"
+                    value="1"
+                    {% if show_inactive %}checked{% endif %}>
+                  <label class="form-check-label" for="show-inactive">Показать удалённых</label>
                 </div>
               </div>
-
-              <div class="col-12 col-md-6 d-flex justify-content-md-end">
-                <button class="btn btn-primary w-100 w-md-auto" type="submit">
-                  <i class="bi bi-funnel me-1"></i> Применить
-                </button>
-              </div>
-
             </form>
           </div>
-
           <!-- Быстрый фильтр (клиентский) -->
-          <div class="col-12 col-lg-4">
+          <!--<div class="col-12 col-lg-4">
             <label class="form-label" for="client-search">Быстрый фильтр на странице</label>
             <div class="d-flex flex-column flex-sm-row gap-2 align-items-sm-center">
               <input id="client-search"
@@ -99,18 +125,17 @@
               </span>
             </div>
             <div class="form-text">Ищет по ФИО / классу / типу льготы.</div>
-          </div>
+          </div> -->
         </div>
-
       </div>
     </div>
 
     <!-- BULK (POST) -->
     <form method="post" id="bulk-form" class="mb-3">
+      <h3>Множественный выбор</h3>
       {% csrf_token %}
-
         <div class="d-flex flex-column flex-lg-row flex-wrap gap-2 align-items-lg-center justify-content-between p-3 rounded-4 bg-transparent app-panel">
-          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
             <button type="button" class="btn btn-outline-light btn-sm" id="check-all">
               <i class="bi bi-check2-square me-1"></i> Выбрать всё
             </button>
@@ -160,14 +185,16 @@
       <div class="table-responsive app-table__scroll">
         <table class="table table-dark table-striped table-hover align-middle mb-0 manage-table app-table__table app-table--stack"
                data-app-table-target
-               data-sort-columns="none,class,text,none,none,none">
+               data-sort-columns="none,class,none,text,none,none,none">
         <thead>
           <tr>
             <th style="width:120px;">Выбор</th>
             <th style="width:120px;">Класс</th>
+            <th style="width:120px;">Правка</th>
             <th>Ученик</th>
             <th style="min-width:220px;">Статусы</th>
             <th style="min-width:260px;">Льготы (типы)</th>
+            <!--<th style="width:210px;">Действия</th>-->
           </tr>
         </thead>
 
@@ -175,7 +202,7 @@
           {% for s in students %}
             {% with types=s.privilege_types.all %}
             <tr class="student-row {% if not s.is_active %}is-inactive{% endif %}"
-                data-class="{{ s.class_room.name|lower }}"
+                data-class-name="{{ s.class_room.name|lower }}"
                 data-name="{{ s.full_name|lower }}"
                 data-active="{{ s.is_active|yesno:'1,0' }}"
                 data-priv-type="{% if types %}{% for t in types %}{{ t.code }} {{ t.get_code_display }}{% if not forloop.last %} {% endif %}{% endfor %}{% elif s.is_privileged %}без типа{% endif %}">
@@ -197,10 +224,26 @@
 
               <!-- Класс -->
               <td class="stack-head-cell" data-label="Класс">
-                <span class="badge rounded-pill text-bg-primary">
-                  <i class="bi bi-mortarboard me-1"></i>
-                  <strong>{{ s.class_room.name }}</strong>
-                </span>
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                  <span class="badge rounded-pill text-bg-primary">
+                    {{ s.class_room.name }}
+                  </span>
+                </div>
+              </td>
+
+              <!-- Правка класса -->
+              <td data-label="Правка">
+                {% if is_deputy %}
+                  <button type="button"
+                          class="btn btn-sm btn-outline-info js-open-class-edit"
+                          data-student-id="{{ s.id }}"
+                          data-student-name="{{ s.full_name }}"
+                          data-class-id="{{ s.class_room.id }}">
+                    <i class="bi bi-pencil-square me-1"></i>
+                  </button>
+                {% else %}
+                  <span class="text-secondary">—</span>
+                {% endif %}
               </td>
 
               <!-- ФИО -->
@@ -258,7 +301,7 @@
               </td>
 
               <!-- Действия -->
-              <td data-label="Действия">
+              <!--<td data-label="Действия">
                 <div class="d-flex gap-2 flex-wrap">
                   {% if s.is_active %}
                     <button type="button"
@@ -276,7 +319,7 @@
                     </button>
                   {% endif %}
                 </div>
-              </td>
+              </td>-->
 
             </tr>
             {% endwith %}
@@ -305,6 +348,15 @@
       <input type="hidden" name="privilege_types" id="priv-type-value">
     </form>
 
+    {% if is_deputy %}
+    <form method="post" id="class-edit-form" style="display:none;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_student_class">
+      <input type="hidden" name="student_id" id="class-edit-student-id">
+      <input type="hidden" name="class_id" id="class-edit-class-id">
+    </form>
+    {{ class_options|json_script:"class-options-data" }}
+    {% endif %}
 
   </div>
 </div>

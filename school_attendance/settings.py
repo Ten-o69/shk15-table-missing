@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 import os
 
@@ -95,6 +96,9 @@ STATICFILES_DIRS = [
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Время на редактирования
+TIME_EDITABLE = timedelta(hours=12)
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'index'

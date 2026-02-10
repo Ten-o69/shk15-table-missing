@@ -8,7 +8,7 @@ from django.shortcuts import render, redirect
 from django.utils import timezone
 
 from database.models import ClassRoom, Student, AttendanceSummary, AbsentStudent
-from school_attendance.settings import DEBUG
+from school_attendance.settings import DEBUG, TIME_EDITABLE
 from ..utils import class_sort_key
 from ..services import school_calendar  # ✅ Import calendar service
 
@@ -80,7 +80,7 @@ def index(request):
     can_edit_by_class = {}
 
     for s in summaries:
-        deadline = s.created_at + timedelta(minutes=30)
+        deadline = s.created_at + TIME_EDITABLE
         edit_deadline_by_class[s.class_room_id] = deadline
         can_edit_by_class[s.class_room_id] = now_dt <= deadline
 
@@ -225,7 +225,7 @@ def index(request):
             # Сохранение
             existing = AttendanceSummary.objects.filter(class_room=class_room, date=today).first()
             if existing:
-                if timezone.now() > (existing.created_at + timedelta(minutes=30)):
+                if timezone.now() > (existing.created_at + TIME_EDITABLE):
                     messages.error(request, f'Класс {class_room.name}: окно редактирования закрыто.')
                     return redirect('index')
 

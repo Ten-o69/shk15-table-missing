@@ -81,3 +81,8 @@
   outline: 2px solid var(--focus-ring-strong);
   outline-offset: 2px;
 }
+
+.card-body h3 {
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--focus-ring-strong);
+}
