@@ -5,7 +5,7 @@
 {% block title %}Статистика посещаемости{% endblock %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{% static 'attendance/css/statistics.css' %}?v=20260130d">
+  <link rel="stylesheet" href="{% static 'attendance/css/statistics.css' %}?v=20260130k">
 {% endblock %}
 
 {% block content %}
@@ -157,15 +157,15 @@
               </div>
               <div class="d-flex align-items-center gap-1">
                   <span class="d-inline-block rounded-1" style="width: 12px; height: 12px; background-color: #dc3545;"></span>
-                  <span class="text-secondary small">&lt; 85%</span>
+                  <span class="text-secondary small">&lt; 40%</span>
               </div>
               <div class="d-flex align-items-center gap-1">
                   <span class="d-inline-block rounded-1" style="width: 12px; height: 12px; background-color: #ffc107;"></span>
-                  <span class="text-secondary small">85-94%</span>
+                  <span class="text-secondary small">40-59%</span>
               </div>
               <div class="d-flex align-items-center gap-1">
                   <span class="d-inline-block rounded-1" style="width: 12px; height: 12px; background-color: #198754;"></span>
-                  <span class="text-secondary small">&ge; 95%</span>
+                  <span class="text-secondary small">&ge; 60%</span>
               </div>
           </div>
 
@@ -570,5 +570,5 @@
 </script>
 
 <script src="{% static 'attendance/js/libs/apexcharts.min.js' %}"></script>
-<script src="{% static 'attendance/js/statistics.js' %}?v=20260130d"></script>
+<script src="{% static 'attendance/js/statistics.js' %}?v=20260130k"></script>
 {% endblock %}

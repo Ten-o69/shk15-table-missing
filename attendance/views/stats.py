@@ -145,7 +145,7 @@ def statistics(request):
         data_points = []
         for d in month_days:
             s = summary_map[c.id].get(d)
-            val = None  # Процент для цвета
+            val = -1  # -1 = отчет не сдан (серый в heatmap)
             counts = None  # Детализация для тултипа
 
             if s:
@@ -160,17 +160,14 @@ def statistics(request):
 
                 if total > 0:
                     val = round((present / total) * 100, 1)
-                else:
-                    val = 0
-
-                # Собираем реальные числа
-                counts = {
-                    'p': present,  # Пришло
-                    'u': unex,  # Неуважительные
-                    'o': orvi,  # ОРВИ
-                    'd': other,  # Другие болезни
-                    'f': fam  # Семейные
-                }
+                    # Собираем реальные числа только для сданного отчета
+                    counts = {
+                        'p': present,  # Пришло
+                        'u': unex,  # Неуважительные
+                        'o': orvi,  # ОРВИ
+                        'd': other,  # Другие болезни
+                        'f': fam  # Семейные
+                    }
 
             # Добавляем объект counts внутрь точки данных
             data_points.append({

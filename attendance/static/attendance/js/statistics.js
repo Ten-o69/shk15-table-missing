@@ -275,24 +275,28 @@
     return { rowHeight, topPad };
   }
 
-  function getSeriesRowCenters(chartEl, seriesOrder) {
-    const seriesEls = Array.from(chartEl.querySelectorAll(".apexcharts-series"));
-    if (!seriesEls.length) return [];
-    const centers = [];
+  function getDistinctRowCenters(chartEl) {
+    const rects = Array.from(chartEl.querySelectorAll(".apexcharts-heatmap-rect"));
+    if (!rects.length) return [];
 
-    seriesEls.forEach((seriesEl, idx) => {
-      const rect = seriesEl.querySelector(".apexcharts-heatmap-rect");
-      if (!rect) return;
+    const centers = [];
+    rects.forEach(rect => {
       const r = rect.getBoundingClientRect();
-      if (!r.height) return;
-      const name = seriesEl.getAttribute("seriesname")
-        || seriesEl.getAttribute("seriesName")
-        || (seriesOrder[idx] && seriesOrder[idx].name);
-      if (!name) return;
-      centers.push({ name, center: r.top + (r.height / 2) });
+      if (r.height > 0) {
+        centers.push(Math.round((r.top + (r.height / 2)) * 10) / 10);
+      }
     });
 
-    return centers;
+    if (!centers.length) return [];
+    centers.sort((a, b) => a - b);
+
+    const rows = [];
+    centers.forEach(c => {
+      const last = rows[rows.length - 1];
+      if (last == null || Math.abs(c - last) > 1) rows.push(c);
+    });
+
+    return rows;
   }
 
   function resetHeatmapSideItems(list) {
@@ -321,28 +325,24 @@
     const listRect = list.getBoundingClientRect();
     if (!chartRect.height) return false;
 
-    const centers = getSeriesRowCenters(chartEl, seriesOrder);
-    if (!centers.length) return false;
+    const rowCenters = getDistinctRowCenters(chartEl);
+    if (!rowCenters.length) return false;
 
     list.style.height = `${chartRect.height}px`;
     list.style.paddingTop = "0";
 
-    const items = new Map();
-    list.querySelectorAll(".heatmap-side__item").forEach(item => {
-      const name = (item.dataset.className || item.textContent || "").trim();
-      if (name) items.set(name, item);
-    });
+    const items = Array.from(list.querySelectorAll(".heatmap-side__item"));
+    const pairCount = Math.min(items.length, rowCenters.length);
 
-    centers.forEach(({ name, center }) => {
-      const item = items.get(name);
-      if (!item) return;
-      const top = center - listRect.top;
+    for (let i = 0; i < pairCount; i += 1) {
+      const item = items[i];
+      const top = rowCenters[i] - listRect.top;
       item.style.position = "absolute";
       item.style.left = "0";
       item.style.right = "0";
       item.style.top = `${top}px`;
       item.style.transform = "translateY(-50%)";
-    });
+    }
 
     return true;
   }
@@ -421,12 +421,15 @@
 
     const sortedHeatmap = sortHeatmapSeries(chartData.heatmap);
     const chartHeatmap = [...sortedHeatmap].reverse();
+    const displayHeatmap = [...chartHeatmap].reverse();
     chartData.heatmap = chartHeatmap;
-    reorderHeatmapSideList(chartHeatmap);
+    reorderHeatmapSideList(displayHeatmap);
 
     // ✅ Определяем текущую тему из HTML тега (data-theme="light" или "dark")
     // Если атрибута нет, считаем dark по умолчанию
     const currentTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    const LOW_THRESHOLD = 40;
+    const HIGH_THRESHOLD = 60;
 
     const commonOptions = {
       chart: {
@@ -460,7 +463,7 @@
         }
 
         // Цвета Bootstrap (success/warning/danger) видны и на светлом, и на темном
-        let clrClass = percentVal >= 95 ? 'text-success' : (percentVal >= 85 ? 'text-warning' : 'text-danger');
+        let clrClass = percentVal >= HIGH_THRESHOLD ? 'text-success' : (percentVal >= LOW_THRESHOLD ? 'text-warning' : 'text-danger');
 
         return `
         <div class="chart-tooltip">
@@ -536,9 +539,10 @@
             shadeIntensity: 0.5, radius: 4, useFillColorAsStroke: false,
             colorScale: {
               ranges: [
-                { from: 0, to: 84.9, color: '#dc3545', name: 'Низкая (<85%)' },
-                { from: 85, to: 94.9, color: '#ffc107', name: 'Средняя (85-94%)' },
-                { from: 95, to: 100, color: '#198754', name: 'Норма (≥95%)' }
+                { from: -1, to: -1, color: '#343a40', name: 'Нет отчета' },
+                { from: 0, to: 39.9, color: '#dc3545', name: 'Низкая (<40%)' },
+                { from: 40, to: 59.9, color: '#ffc107', name: 'Средняя (40-59%)' },
+                { from: 60, to: 100, color: '#198754', name: 'Норма (≥60%)' }
               ]
             }
           }
@@ -567,7 +571,7 @@
 
       const renderResult = heatmapChart.render();
       const afterRender = () => {
-        reorderHeatmapSideList(chartData.heatmap);
+        reorderHeatmapSideList([...chartData.heatmap].reverse());
         scheduleHeatmapSync();
         setTimeout(() => scheduleHeatmapSync(), 200);
       };

@@ -73,6 +73,9 @@
   align-items: center;
   justify-content: flex-start;
   min-width: 54px;
+  font-size: .84rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Make small tables more readable on mobile */
