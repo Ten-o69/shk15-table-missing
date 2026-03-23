@@ -61,6 +61,22 @@
                  form="month-form">
         </div>
 
+        {% if debug_mode %}
+          <div class="col-12 col-md-6 col-xl-2">
+            <label class="form-label mb-1" for="stat-test-day">Текущий день (dev)</label>
+            <select id="stat-test-day"
+                    name="test_day"
+                    class="form-select form-select-sm"
+                    form="month-form">
+              {% for day_num in available_test_days %}
+                <option value="{{ day_num }}"{% if day_num == selected_test_day %} selected{% endif %}>{{ day_num }}</option>
+              {% empty %}
+                <option value="">Нет доступных дней</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
+
         <div class="col-12 col-md-3 col-xl-2">
           <form method="get" id="month-form" class="d-flex">
             <button type="submit" class="btn btn-primary w-100 btn-sm">
@@ -69,7 +85,7 @@
           </form>
         </div>
 
-        <div class="col-12 col-xl-6">
+        <div class="col-12 col-xl-4">
           <label class="form-label mb-1" for="global-search">
             <i class="bi bi-funnel me-1"></i> Общий поиск
           </label>
@@ -190,7 +206,7 @@
                             {% for row in heatmap_rows %}
                               <li class="heatmap-side__item" title="{{ row.class_name }}" data-class-name="{{ row.class_name }}">
                                 <span class="heatmap-side__class">{{ row.class_name }}</span>
-                                <span class="heatmap-side__ratio">{{ row.report_count }}/{{ working_days_count }}</span>
+                                <span class="heatmap-side__ratio">{{ row.report_count }}/{{ reports_day_limit }}</span>
                               </li>
                             {% endfor %}
                           </ul>

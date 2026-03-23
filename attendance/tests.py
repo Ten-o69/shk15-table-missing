@@ -22,8 +22,22 @@ class ParseIntParamTests(SimpleTestCase):
 
 
 class SchoolCalendarTests(SimpleTestCase):
-    @override_settings(SCHOOL_HOLIDAYS=[(1, 1)])
-    def test_is_school_day_respects_weekends_and_holidays(self):
+    def test_is_school_day_respects_weekends_and_russian_holidays(self):
         self.assertFalse(school_calendar.is_school_day(date(2026, 1, 3)))
         self.assertFalse(school_calendar.is_school_day(date(2026, 1, 1)))
-        self.assertTrue(school_calendar.is_school_day(date(2026, 1, 6)))
+        self.assertFalse(school_calendar.is_school_day(date(2026, 1, 6)))
+        self.assertTrue(school_calendar.is_school_day(date(2026, 1, 9)))
+
+    def test_get_holidays_for_year_includes_transferred_russian_days_off(self):
+        holidays_2025 = school_calendar.get_holidays_for_year(2025)
+        self.assertIn(date(2025, 5, 2), holidays_2025)
+        self.assertIn(date(2025, 6, 13), holidays_2025)
+
+    @override_settings(SCHOOL_HOLIDAYS=[(1, 13)])
+    def test_working_day_helpers_use_filtered_school_days(self):
+        self.assertEqual(
+            school_calendar.get_working_day_numbers_in_month(2026, 1),
+            [9, 12, 14, 15, 16, 19, 20, 21, 22, 23, 26, 27, 28, 29, 30],
+        )
+        self.assertEqual(school_calendar.resolve_working_day_number(2026, 1, 13, 13), 12)
+        self.assertEqual(school_calendar.count_working_days_up_to(2026, 1, 13), 2)

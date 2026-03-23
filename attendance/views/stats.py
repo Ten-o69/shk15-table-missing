@@ -1,5 +1,6 @@
 import calendar
 import json  # <--- Вернули импорт
+from datetime import datetime
 from collections import defaultdict
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Sum, Count
@@ -8,6 +9,7 @@ from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder  # <--- Вернули импорт
 
 from database.models import ClassRoom, Student, AttendanceSummary, AbsentStudent
+from school_attendance.settings import DEBUG
 from ..utils import class_sort_key, parse_int_param
 from ..services import school_calendar
 from .auth import deny_substitute_access, is_deputy
@@ -17,9 +19,39 @@ from .auth import deny_substitute_access, is_deputy
 @deny_substitute_access
 @user_passes_test(is_deputy)
 def statistics(request):
-    today = timezone.localdate()
-    month = parse_int_param(request.GET.get('month'), today.month, min_value=1, max_value=12)
-    year = parse_int_param(request.GET.get('year'), today.year, min_value=1970, max_value=2100)
+    real_today = timezone.localdate()
+    month = parse_int_param(request.GET.get('month'), real_today.month, min_value=1, max_value=12)
+    year = parse_int_param(request.GET.get('year'), real_today.year, min_value=1970, max_value=2100)
+    _, last_day_of_month = calendar.monthrange(year, month)
+    current_day_of_month = min(real_today.day, last_day_of_month)
+    available_test_days = school_calendar.get_working_day_numbers_in_month(year, month)
+
+    requested_test_day = None
+    if DEBUG:
+        if request.GET.get('test_day'):
+            requested_test_day = parse_int_param(
+                request.GET.get('test_day'),
+                0,
+                min_value=1,
+                max_value=last_day_of_month,
+            )
+        elif request.GET.get('test_date'):
+            try:
+                requested_test_day = datetime.strptime(
+                    request.GET['test_date'],
+                    '%Y-%m-%d',
+                ).date().day
+            except ValueError:
+                requested_test_day = None
+
+    selected_test_day = None
+    if DEBUG:
+        selected_test_day = school_calendar.resolve_working_day_number(
+            year,
+            month,
+            requested_day=requested_test_day,
+            fallback_day=current_day_of_month,
+        )
 
     # 1. Базовые данные
     monthly_qs = AttendanceSummary.objects.filter(
@@ -120,7 +152,11 @@ def statistics(request):
 
     # --- ГРАФИКИ ---
     month_days = school_calendar.get_working_days_in_month(year, month)
-    working_days_count = len(month_days)
+    reports_day_limit = school_calendar.count_working_days_up_to(
+        year,
+        month,
+        selected_test_day if DEBUG else current_day_of_month,
+    )
 
     working_qs = monthly_qs.filter(date__in=month_days) if month_days else monthly_qs.none()
     month_counts_by_class = {
@@ -221,10 +257,13 @@ def statistics(request):
         'per_student': per_student,
         'month': month,
         'year': year,
+        'debug_mode': DEBUG,
+        'available_test_days': available_test_days,
+        'selected_test_day': selected_test_day,
         'privileged_types_by_class': privileged_types_by_class,
         'privileged_types_totals': privileged_types_totals,
         'heatmap_rows': heatmap_rows,
-        'working_days_count': working_days_count,
+        'reports_day_limit': reports_day_limit,
 
         # ✅ Передаем ГОТОВУЮ JSON-строку
         'chart_data_json': json.dumps(raw_chart_data, cls=DjangoJSONEncoder),
