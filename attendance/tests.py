@@ -4,6 +4,7 @@ from django.test import SimpleTestCase, override_settings
 
 from attendance.services import school_calendar
 from attendance.utils import class_sort_key, parse_int_param
+from attendance.views.stats import build_student_search_text
 
 
 class ClassSortKeyTests(SimpleTestCase):
@@ -41,3 +42,12 @@ class SchoolCalendarTests(SimpleTestCase):
         )
         self.assertEqual(school_calendar.resolve_working_day_number(2026, 1, 13, 13), 12)
         self.assertEqual(school_calendar.count_working_days_up_to(2026, 1, 13), 2)
+
+
+class StudentLookupTests(SimpleTestCase):
+    def test_build_student_search_text_includes_initial_variants(self):
+        search_text = build_student_search_text('Иванов Иван Иванович', '5А')
+        self.assertIn('иванов и и', search_text)
+        self.assertIn('иванов ии', search_text)
+        self.assertIn('иванов и. и.', search_text)
+        self.assertIn('5а', search_text)

@@ -15,6 +15,190 @@
   overflow: hidden;
 }
 
+.student-lookup__controls {
+  display: flex;
+  gap: .75rem;
+  align-items: flex-start;
+}
+
+.student-lookup__field {
+  position: relative;
+  flex: 1 1 auto;
+}
+
+.student-lookup__results {
+  position: absolute;
+  top: calc(100% + .4rem);
+  left: 0;
+  right: 0;
+  display: none;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  z-index: 8;
+}
+
+.student-lookup__results.is-open {
+  display: block;
+}
+
+.student-lookup__result,
+.student-lookup__empty {
+  width: 100%;
+  padding: .8rem .9rem;
+  border: 0;
+  border-bottom: 1px solid var(--border-weak);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.student-lookup__result:last-child,
+.student-lookup__empty:last-child {
+  border-bottom: 0;
+}
+
+.student-lookup__result:hover {
+  background: var(--surface-5);
+}
+
+.student-lookup__result-name {
+  display: block;
+  font-weight: 600;
+}
+
+.student-lookup__result-meta {
+  display: block;
+  margin-top: .15rem;
+  color: var(--text-muted);
+  font-size: .86rem;
+}
+
+.student-empty-state,
+.student-overview {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-1);
+  padding: 1rem;
+}
+
+.student-empty-state__title,
+.student-overview__name {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.student-overview__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.student-overview__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+
+.student-stat-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+  padding: .8rem .9rem;
+}
+
+.student-stat-card__label {
+  display: block;
+  color: var(--text-muted);
+  font-size: .82rem;
+  margin-bottom: .3rem;
+}
+
+.student-stat-card__value {
+  display: block;
+  font-size: 1.3rem;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.student-days {
+  display: flex;
+  flex-direction: column;
+  gap: .7rem;
+}
+
+.student-day {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: .9rem;
+  align-items: center;
+  padding: .85rem .95rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.student-day__date {
+  text-align: center;
+  border-right: 1px solid var(--border-weak);
+  padding-right: .9rem;
+}
+
+.student-day__date-main {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.student-day__date-sub {
+  color: var(--text-muted);
+  font-size: .82rem;
+  text-transform: lowercase;
+}
+
+.student-day__status {
+  font-weight: 700;
+  margin-bottom: .15rem;
+}
+
+.student-day__note {
+  color: var(--text-muted);
+  font-size: .88rem;
+}
+
+.student-day--success {
+  border-color: rgba(25, 135, 84, 0.35);
+}
+
+.student-day--unexcused {
+  border-color: rgba(220, 53, 69, 0.45);
+  background: rgba(220, 53, 69, 0.08);
+}
+
+.student-day--orvi {
+  border-color: rgba(255, 193, 7, 0.4);
+  background: rgba(255, 193, 7, 0.08);
+}
+
+.student-day--other_disease {
+  border-color: rgba(13, 202, 240, 0.35);
+  background: rgba(13, 202, 240, 0.08);
+}
+
+.student-day--family {
+  border-color: rgba(108, 117, 125, 0.45);
+  background: rgba(108, 117, 125, 0.1);
+}
+
+.student-day--muted {
+  border-style: dashed;
+  background: rgba(108, 117, 125, 0.12);
+}
+
 /* Heatmap side column */
 .heatmap-grid {
   display: flex;
@@ -182,11 +366,6 @@
   padding-right: .5rem;
 }
 
-/* Quick table type buttons: keep compact */
-[data-table-type-btn] {
-  white-space: nowrap;
-}
-
 /* Mobile tweaks */
 @media (max-width: 576px) {
   .summary-mini {
@@ -195,9 +374,29 @@
   .table thead th {
     font-size: .85rem;
   }
+  .student-overview__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 992px) {
+  .student-lookup__controls,
+  .student-overview__header {
+    flex-direction: column;
+  }
+  .student-overview__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .student-day {
+    grid-template-columns: 1fr;
+  }
+  .student-day__date {
+    text-align: left;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-weak);
+    padding-right: 0;
+    padding-bottom: .6rem;
+  }
   .heatmap-grid {
     flex-direction: column;
   }
@@ -273,6 +472,14 @@
   background: #ffffff;
 }
 
+:root[data-theme="light"] .student-empty-state,
+:root[data-theme="light"] .student-overview,
+:root[data-theme="light"] .student-stat-card,
+:root[data-theme="light"] .student-day,
+:root[data-theme="light"] .student-lookup__results {
+  background: #ffffff;
+}
+
 :root[data-theme="light"] .section-toggle{
   padding: .6rem .65rem;
   border: 1px solid var(--border-weak);
@@ -306,28 +513,6 @@
 :root[data-theme="light"] .summary-mini {
   background: rgba(37,99,235,0.08);
   border-color: rgba(37,99,235,0.18);
-}
-
-/* Light theme: make table filter buttons more expressive */
-:root[data-theme="light"] [data-table-type-btn].btn-outline-light {
-  background: #ffffff;
-  border-color: var(--border);
-  color: var(--text);
-  box-shadow: 0 6px 12px rgba(15,23,42,0.08);
-}
-
-:root[data-theme="light"] [data-table-type-btn].btn-outline-light:hover {
-  background: rgba(37,99,235,0.08);
-  border-color: rgba(37,99,235,0.25);
-  color: var(--text);
-}
-
-:root[data-theme="light"] [data-table-type-btn].btn-outline-light.active,
-:root[data-theme="light"] [data-table-type-btn].btn-outline-light:active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #ffffff;
-  box-shadow: 0 8px 16px rgba(37,99,235,0.28);
 }
 
 /* Daily section readability in light theme */

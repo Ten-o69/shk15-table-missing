@@ -3,11 +3,6 @@
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
   // --- Helpers ---
-  function textMatches(el, needle) {
-    if (!needle) return true;
-    return (el.textContent || "").toLowerCase().includes(needle.toLowerCase());
-  }
-
   function debounce(fn, wait = 150) {
     let t = null;
     return (...args) => {
@@ -16,170 +11,130 @@
     };
   }
 
-  // --- Collapse Logic ---
-  const collapseInstance = new WeakMap();
-  const SECTION_KINDS = ["visuals", "privileged_types", "daily", "by_class", "by_student"];
-
-  function getCollapseInstance(el) {
-    if (!el || !window.bootstrap || !window.bootstrap.Collapse) return null;
-    if (collapseInstance.has(el)) return collapseInstance.get(el);
-    const inst = window.bootstrap.Collapse.getInstance(el) || new window.bootstrap.Collapse(el, { toggle: false });
-    collapseInstance.set(el, inst);
-    return inst;
-  }
-
   function setButtonExpanded(kind, expanded) {
     const btn = document.querySelector(`[data-section-toggle-btn="${kind}"]`);
     if (btn) btn.setAttribute("aria-expanded", expanded ? "true" : "false");
   }
 
-  function setSectionExpanded(kind, expanded) {
-    const body = document.querySelector(`[data-section-collapse="${kind}"]`);
-    if (!body) return;
-    const inst = getCollapseInstance(body);
-    if (inst) {
-      expanded ? inst.show() : inst.hide();
-    } else {
-      body.classList.toggle("show", !!expanded);
+  (function initScrollRestore() {
+    const storageKey = "statistics:scrollY";
+    const pendingValue = window.sessionStorage.getItem(storageKey);
+
+    if (pendingValue !== null) {
+      window.sessionStorage.removeItem(storageKey);
+      const scrollY = Number.parseFloat(pendingValue);
+      if (Number.isFinite(scrollY)) {
+        window.requestAnimationFrame(() => {
+          window.scrollTo({ top: scrollY, behavior: "auto" });
+        });
+      }
     }
-    setButtonExpanded(kind, expanded);
-  }
 
-  function scrollToSection(kind) {
-    const btn = document.querySelector(`[data-section-toggle-btn="${kind}"]`);
-    if (!btn) return;
-    const top = btn.getBoundingClientRect().top + window.pageYOffset - 12;
-    window.scrollTo({ top, behavior: "smooth" });
-  }
+    function storeScrollPosition() {
+      window.sessionStorage.setItem(storageKey, String(window.scrollY || window.pageYOffset || 0));
+    }
 
-  function syncSectionsForTableType(tableType, { doScroll = false } = {}) {
-    if (tableType === "all") return;
-    SECTION_KINDS.forEach(k => setSectionExpanded(k, k === tableType));
-    if (doScroll) setTimeout(() => scrollToSection(tableType), 60);
-  }
-
-  // --- Smart Auto-Open ---
-  function isRowVisible(row) {
-    return row && row.style.display !== "none";
-  }
-
-  function hasVisibleRowsInSection(kind) {
-    const block = document.querySelector(`[data-section-block="${kind}"]`);
-    if (!block || block.style.display === "none") return false;
-    if (kind === "visuals") return true;
-    const rows = $$(`tr[data-row-type="${kind}"]`, block);
-    return rows.some(isRowVisible);
-  }
-
-  function applySmartAutoCollapse({ tableType, isFiltering } = {}) {
-    if (tableType !== "all" || !isFiltering) return;
-    SECTION_KINDS.forEach(k => {
-      if (k === "visuals") return;
-      setSectionExpanded(k, hasVisibleRowsInSection(k));
+    document.querySelectorAll("[data-preserve-scroll]").forEach((element) => {
+      element.addEventListener("click", () => {
+        storeScrollPosition();
+      });
     });
-  }
 
-  // --- Filtering ---
-  (function initFilters() {
-    const globalInput = $("#global-search");
-    const classInput = $("#filter-class");
-    const studentInput = $("#filter-student");
-    const minUnexcusedInput = $("#filter-min-unexcused");
-    const minAbsencesInput = $("#filter-min-absences");
-    const typeSelect = $("#filter-table-type");
-    const resetBtn = $("#reset-filters");
+    window.__storeStatisticsScroll = storeScrollPosition;
+  })();
 
-    if (!globalInput || !typeSelect) return;
+  (function initStudentLookup() {
+    const input = $("#student-lookup-input");
+    const results = $("#student-lookup-results");
+    const items = Array.isArray(window.STUDENT_LOOKUP_DATA) ? window.STUDENT_LOOKUP_DATA : [];
 
-    function applyFilters({ doScroll = false } = {}) {
-      const globalTerm = globalInput.value.trim().toLowerCase();
-      const classTerm = classInput ? classInput.value.trim().toLowerCase() : "";
-      const studentTerm = studentInput ? studentInput.value.trim().toLowerCase() : "";
-      const minUnexcused = minUnexcusedInput ? (parseInt(minUnexcusedInput.value || "0", 10) || 0) : 0;
-      const minAbsences = minAbsencesInput ? (parseInt(minAbsencesInput.value || "0", 10) || 0) : 0;
-      const tableType = typeSelect.value;
+    if (!input || !results || !items.length) return;
 
-      const isFiltering = !!(globalTerm || classTerm || studentTerm || minUnexcused || minAbsences);
+    function buildStudentUrl(studentId) {
+      const params = new URLSearchParams(window.location.search);
+      if (studentId) params.set("student_id", String(studentId));
+      else params.delete("student_id");
+      return `${window.location.pathname}?${params.toString()}`;
+    }
 
-      $$("[data-section-block]").forEach((block) => {
-        const kind = block.dataset.sectionBlock;
-        block.style.display = (tableType === "all" || tableType === kind) ? "" : "none";
-      });
+    function closeResults() {
+      results.innerHTML = "";
+      results.classList.remove("is-open");
+    }
 
-      $$("tr[data-row-type]").forEach((row) => {
-        const rowType = row.dataset.rowType;
-        const className = (row.dataset.className || "").toLowerCase();
-        const studentName = (row.dataset.studentName || "").toLowerCase();
-        const unexcused = parseInt(row.dataset.unexcused || row.dataset.totalUnexcused || "0", 10) || 0;
-        const absenceCount = parseInt(row.dataset.absenceCount || "0", 10) || 0;
+    function openStudent(studentId) {
+      if (typeof window.__storeStatisticsScroll === "function") {
+        window.__storeStatisticsScroll();
+      }
+      window.location.href = buildStudentUrl(studentId);
+    }
 
-        let visible = true;
-        if (tableType !== "all" && rowType !== tableType) visible = false;
-        if (visible && globalTerm && !textMatches(row, globalTerm)) visible = false;
-        if (visible && classTerm && !className.includes(classTerm)) visible = false;
-        if (visible && studentTerm) {
-          if (rowType === "by_student") {
-            if (!studentName.includes(studentTerm)) visible = false;
-          } else if (!textMatches(row, studentTerm)) {
-            visible = false;
-          }
-        }
-        if (visible && minUnexcused > 0 && ["daily", "by_class"].includes(rowType) && unexcused < minUnexcused) visible = false;
-        if (visible && minAbsences > 0 && rowType === "by_student" && absenceCount < minAbsences) visible = false;
-
-        row.style.display = visible ? "" : "none";
-      });
-
-      const dailyBlock = document.querySelector(`[data-section-block="daily"]`);
-      if (dailyBlock && dailyBlock.style.display !== "none") {
-         $$(".accordion-item", dailyBlock).forEach(item => {
-            const hasVis = $$(`tr[data-row-type="daily"]`, item).some(isRowVisible);
-            item.style.display = hasVis ? "" : "none";
-         });
+    function renderResults(term) {
+      const query = (term || "").trim().toLowerCase();
+      if (query.length < 2) {
+        closeResults();
+        return [];
       }
 
-      $$("[data-table-type-btn]").forEach((btn) => {
-        const v = btn.getAttribute("data-table-type-btn");
-        const isActive = (tableType === v);
-        btn.classList.toggle("active", isActive);
-        btn.setAttribute("aria-pressed", isActive);
-      });
+      const matches = items
+        .filter(item => item.search_text.includes(query))
+        .slice(0, 8);
 
-      if (tableType === "all") applySmartAutoCollapse({ tableType, isFiltering });
-      else syncSectionsForTableType(tableType, { doScroll });
-    }
-
-    const applyDebounced = debounce(() => applyFilters({ doScroll: false }), 150);
-
-    [globalInput, classInput, studentInput, minUnexcusedInput, minAbsencesInput].forEach(el => {
-      if(el) {
-          el.addEventListener("input", applyDebounced);
-          el.addEventListener("change", () => applyFilters({ doScroll: false }));
+      if (!matches.length) {
+        results.innerHTML = '<div class="student-lookup__empty">Совпадений не найдено</div>';
+        results.classList.add("is-open");
+        return [];
       }
-    });
 
-    typeSelect.addEventListener("change", () => applyFilters({ doScroll: true }));
+      results.innerHTML = "";
+      matches.forEach((item) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "student-lookup__result";
+        button.dataset.studentId = item.id;
 
-    $$("[data-table-type-btn]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const v = btn.getAttribute("data-table-type-btn");
-        if(v) { typeSelect.value = v; applyFilters({ doScroll: true }); }
+        const name = document.createElement("span");
+        name.className = "student-lookup__result-name";
+        name.textContent = item.full_name;
+
+        const meta = document.createElement("span");
+        meta.className = "student-lookup__result-meta";
+        meta.textContent = item.class_name;
+
+        button.appendChild(name);
+        button.appendChild(meta);
+        results.appendChild(button);
       });
-    });
-
-    if (resetBtn) {
-      resetBtn.addEventListener("click", () => {
-        globalInput.value = "";
-        if(classInput) classInput.value = "";
-        if(studentInput) studentInput.value = "";
-        if(minUnexcusedInput) minUnexcusedInput.value = "";
-        if(minAbsencesInput) minAbsencesInput.value = "";
-        typeSelect.value = "all";
-        applyFilters({ doScroll: false });
-      });
+      results.classList.add("is-open");
+      return matches;
     }
 
-    applyFilters({ doScroll: false });
+    let lastMatches = [];
+    const syncResults = debounce(() => {
+      lastMatches = renderResults(input.value);
+    }, 100);
+
+    input.addEventListener("input", syncResults);
+    input.addEventListener("focus", () => {
+      lastMatches = renderResults(input.value);
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      if (!lastMatches.length) return;
+      event.preventDefault();
+      openStudent(lastMatches[0].id);
+    });
+
+    results.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-student-id]");
+      if (!button) return;
+      openStudent(button.getAttribute("data-student-id"));
+    });
+
+    document.addEventListener("click", (event) => {
+      if (event.target === input || results.contains(event.target)) return;
+      closeResults();
+    });
   })();
 
   document.addEventListener("shown.bs.collapse", e => {

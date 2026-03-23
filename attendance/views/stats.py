@@ -3,7 +3,7 @@ import json  # <--- Вернули импорт
 from datetime import datetime
 from collections import defaultdict
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Sum, Count
+from django.db.models import Count
 from django.shortcuts import render
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder  # <--- Вернули импорт
@@ -13,6 +13,39 @@ from school_attendance.settings import DEBUG
 from ..utils import class_sort_key, parse_int_param
 from ..services import school_calendar
 from .auth import deny_substitute_access, is_deputy
+
+
+RUSSIAN_MONTH_NAMES = [
+    '',
+    'январь',
+    'февраль',
+    'март',
+    'апрель',
+    'май',
+    'июнь',
+    'июль',
+    'август',
+    'сентябрь',
+    'октябрь',
+    'ноябрь',
+    'декабрь',
+]
+
+RUSSIAN_WEEKDAY_SHORT = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
+
+
+def build_student_search_text(full_name: str, class_name: str) -> str:
+    parts = [part.strip().lower() for part in (full_name or '').split() if part.strip()]
+    variants = [full_name.lower(), class_name.lower()]
+
+    if parts:
+        initials = [part[0] for part in parts[1:3] if part]
+        if initials:
+            variants.append(f"{parts[0]} {' '.join(initials)}")
+            variants.append(f"{parts[0]} {''.join(initials)}")
+            variants.append(f"{parts[0]} {' '.join(f'{ch}.' for ch in initials)}")
+
+    return ' '.join(variants)
 
 
 @login_required
@@ -94,33 +127,7 @@ def statistics(request):
             ),
         }
 
-    # 3. Сводка по классам
-    monthly_by_class = list(monthly_qs.values(
-        'class_room__id', 'class_room__name'
-    ).annotate(
-        total_present_auto=Sum('present_count_auto'),
-        total_present_reported=Sum('present_count_reported'),
-        total_unexcused=Sum('unexcused_absent_count'),
-        total_orvi=Sum('orvi_count'),
-        total_other_disease=Sum('other_disease_count'),
-        total_family=Sum('family_reason_count'),
-    ))
-    monthly_by_class.sort(key=lambda r: class_sort_key(r['class_room__name']))
-
-    # 4. По ученикам
-    absences_qs = AbsentStudent.objects.filter(
-        attendance__date__year=year,
-        attendance__date__month=month,
-        reason=AbsentStudent.Reason.UNEXCUSED,
-    ).select_related('student', 'attendance__class_room')
-
-    per_student = list(absences_qs.values(
-        'student__id', 'student__full_name', 'student__class_room__name'
-    ).annotate(absence_count=Count('id')))
-    per_student.sort(key=lambda r: (r['student__full_name'] or '').lower())
-    per_student.sort(key=lambda r: class_sort_key(r['student__class_room__name']))
-
-    # 5. Льготники
+    # 3. Льготники
     all_classes = sorted(ClassRoom.objects.all(), key=class_sort_key)
     priv_qs = Student.objects.filter(
         is_active=True, class_room__in=all_classes, privilege_types__isnull=False
@@ -148,7 +155,24 @@ def statistics(request):
     }
 
     total_classes_count = ClassRoom.objects.all().count()
-    total_students_count = Student.objects.filter(is_active=True).count()
+    active_students = list(
+        Student.objects.filter(is_active=True).select_related('class_room')
+    )
+    active_students.sort(key=lambda student: (class_sort_key(student.class_room.name), (student.full_name or '').lower()))
+    students_by_id = {student.id: student for student in active_students}
+
+    selected_student_id = parse_int_param(request.GET.get('student_id'), 0, min_value=1)
+    selected_student = students_by_id.get(selected_student_id)
+
+    student_lookup = [
+        {
+            'id': student.id,
+            'full_name': student.full_name,
+            'class_name': student.class_room.name,
+            'search_text': build_student_search_text(student.full_name, student.class_room.name),
+        }
+        for student in active_students
+    ]
 
     # --- ГРАФИКИ ---
     month_days = school_calendar.get_working_days_in_month(year, month)
@@ -175,6 +199,81 @@ def statistics(request):
     summary_map = defaultdict(dict)
     for s in monthly_qs:
         summary_map[s.class_room_id][s.date] = s
+
+    selected_student_summary = None
+    if selected_student:
+        reason_labels = dict(AbsentStudent.Reason.choices)
+        student_absence_map = {
+            absence.attendance.date: absence
+            for absence in AbsentStudent.objects.filter(
+                student_id=selected_student.id,
+                attendance__date__in=month_days,
+            ).select_related('attendance')
+        }
+
+        summary_days = []
+        absent_total = 0
+        no_report_count = 0
+        reason_totals = {
+            AbsentStudent.Reason.UNEXCUSED: 0,
+            AbsentStudent.Reason.ORVI: 0,
+            AbsentStudent.Reason.OTHER_DISEASE: 0,
+            AbsentStudent.Reason.FAMILY: 0,
+        }
+
+        class_summary_map = summary_map.get(selected_student.class_room_id, {})
+
+        for day in month_days:
+            summary = class_summary_map.get(day)
+            absence = student_absence_map.get(day)
+
+            if not summary:
+                no_report_count += 1
+                summary_days.append({
+                    'date': day,
+                    'weekday_short': RUSSIAN_WEEKDAY_SHORT[day.weekday()],
+                    'status_code': 'no_report',
+                    'status_label': 'Нет отчета класса',
+                    'status_tone': 'muted',
+                    'status_note': 'За этот день класс не сдал дневную статистику.',
+                })
+                continue
+
+            if absence:
+                absent_total += 1
+                reason_totals[absence.reason] += 1
+                summary_days.append({
+                    'date': day,
+                    'weekday_short': RUSSIAN_WEEKDAY_SHORT[day.weekday()],
+                    'status_code': absence.reason,
+                    'status_label': reason_labels.get(absence.reason, 'Отсутствовал'),
+                    'status_tone': absence.reason,
+                    'status_note': f'Причина: {reason_labels.get(absence.reason, "не указана")}.',
+                })
+                continue
+
+            summary_days.append({
+                'date': day,
+                'weekday_short': RUSSIAN_WEEKDAY_SHORT[day.weekday()],
+                'status_code': 'present',
+                'status_label': 'Присутствовал',
+                'status_tone': 'success',
+                'status_note': 'В отчете класса ученик отмечен присутствующим.',
+            })
+
+        selected_student_summary = {
+            'student': selected_student,
+            'month_label': f'{RUSSIAN_MONTH_NAMES[month].capitalize()} {year}',
+            'absent_total': absent_total,
+            'unexcused_total': reason_totals[AbsentStudent.Reason.UNEXCUSED],
+            'orvi_total': reason_totals[AbsentStudent.Reason.ORVI],
+            'other_family_total': (
+                reason_totals[AbsentStudent.Reason.OTHER_DISEASE]
+                + reason_totals[AbsentStudent.Reason.FAMILY]
+            ),
+            'no_report_count': no_report_count,
+            'days': summary_days,
+        }
 
     heatmap_series = []
     for c in all_classes:
@@ -252,14 +351,14 @@ def statistics(request):
         'day_totals': day_totals,
         'day_reported_counts': day_reported_counts,
         'total_classes_count': total_classes_count,
-        'total_students_count': total_students_count,
-        'monthly_by_class': monthly_by_class,
-        'per_student': per_student,
         'month': month,
         'year': year,
         'debug_mode': DEBUG,
         'available_test_days': available_test_days,
         'selected_test_day': selected_test_day,
+        'student_lookup_json': json.dumps(student_lookup, cls=DjangoJSONEncoder),
+        'selected_student': selected_student,
+        'selected_student_summary': selected_student_summary,
         'privileged_types_by_class': privileged_types_by_class,
         'privileged_types_totals': privileged_types_totals,
         'heatmap_rows': heatmap_rows,
